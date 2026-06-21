@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rider App</title>
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2B2420;
+    --muted: #8A7F73;
+    --accent: #C4501F;
+    --accent-soft: #F3E2D5;
+    --line: #EAE2D8;
+    --live: #2F7A4F;
+    --live-soft: #E3F0E8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    width: 100%;
+    max-width: 480px;
+    padding: 32px 20px 16px;
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  #connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  #connection-status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  #connection-status.online .dot { background: var(--live); }
+  #connection-status.online { color: var(--live); }
+
+  .name-input {
+    width: 100%;
+    padding: 11px 14px;
+    margin-top: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .name-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  main {
+    width: 100%;
+    max-width: 480px;
+    padding: 8px 20px 40px;
+  }
+  .grid {
+    display: grid;
+    gap: 12px;
+  }
+  .delivery-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .delivery-info h3 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .delivery-info .meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .accept-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    white-space: nowrap;
+  }
+  .accept-btn:hover { opacity: 0.9; }
+  .accept-btn:disabled {
+    background: var(--accent-soft);
+    color: var(--muted);
+    cursor: default;
+  }
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Available deliveries</h1>
+  <p>New orders show up here the moment they're placed.</p>
+  <div id="connection-status"><span class="dot"></span><span id="connection-text">Connecting…</span></div>
+  <input class="name-input" id="rider-name" type="text" placeholder="Your name (used when you accept a delivery)" />
+</header>
+
+<main>
+  <div id="list" class="grid"></div>
+</main>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const API_BASE = "http://localhost:4000";
+
+  const listEl = document.getElementById("list");
+  const statusEl = document.getElementById("connection-status");
+  const statusText = document.getElementById("connection-text");
+  const riderNameInput = document.getElementById("rider-name");
+
+  let deliveries = []; // orders with status "pending"
+
+  function formatTime(iso) {
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function render() {
+    if (deliveries.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">No deliveries waiting right now.</div>`;
+      return;
+    }
+    listEl.innerHTML = deliveries
+      .map(
+        (order) => `
+        <div class="delivery-card">
+          <div class="delivery-info">
+            <h3>${order.itemName}</h3>
+            <p class="meta">For ${order.customerName} · ₹${order.itemPrice} · ${formatTime(order.createdAt)}</p>
+          </div>
+          <button class="accept-btn" data-id="${order.id}">Accept delivery</button>
+        </div>
+      `
+      )
+      .join("");
+
+    listEl.querySelectorAll(".accept-btn").forEach((btn) => {
+      btn.onclick = () => acceptDelivery(Number(btn.dataset.id), btn);
+    });
+  }
+
+  async function acceptDelivery(orderId, btn) {
+    const riderName = riderNameInput.value.trim();
+    if (!riderName) {
+      riderNameInput.focus();
+      riderNameInput.placeholder = "Enter your name first";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Accepting…";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ riderName }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Could not accept this delivery");
+      }
+      // The order:updated broadcast (below) removes it from everyone's list,
+      // including ours - no need to update local state manually here.
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Accept delivery";
+      alert(err.message);
+    }
+  }
+
+  async function loadAvailableDeliveries() {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/available`);
+      deliveries = await res.json();
+      render();
+    } catch (err) {
+      listEl.innerHTML = `<div class="empty-state">Could not reach the backend. Is server.js running?</div>`;
+    }
+  }
+
+  const socket = io(API_BASE);
+
+  socket.on("connect", () => {
+    statusEl.classList.add("online");
+    statusText.textContent = "Live";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.classList.remove("online");
+    statusText.textContent = "Disconnected";
+  });
+
+  // A brand new order just came in - it's available for anyone to accept
+  socket.on("order:new", (order) => {
+    deliveries.push(order);
+    render();
+  });
+
+  // Someone accepted an order (maybe us, maybe another rider) - either way
+  // it's no longer available, so remove it from this list.
+  socket.on("order:updated", (updatedOrder) => {
+    deliveries = deliveries.filter((d) => d.id !== updatedOrder.id);
+    render();
+  });
+
+  loadAvailableDeliveries();
+</script>
+
+</body>
+</html>
