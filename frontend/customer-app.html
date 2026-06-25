@@ -204,15 +204,17 @@
 
   function renderOrderStatus() {
     const isAccepted = myOrder.status === "accepted";
+    const itemName = myOrder.items?.[0]?.menuItem?.name || "Your order";
+    const itemPrice = myOrder.totalPrice || 0;
     contentEl.innerHTML = `
       <div class="item-card">
         <span class="badge ${isAccepted ? "badge-accepted" : "badge-pending"}">
           ${isAccepted ? "RIDER ON THE WAY" : "ORDER PLACED"}
         </span>
-        <h2>${myOrder.itemName}</h2>
-        <p class="price">₹${myOrder.itemPrice}</p>
+        <h2>${itemName}</h2>
+        <p class="price">₹${itemPrice}</p>
         <p class="status-line">
-          ${isAccepted ? `Accepted by ${myOrder.riderName}` : "Waiting for a rider to accept your order…"}
+          ${isAccepted ? "Accepted by a rider" : "Waiting for a rider to accept your order…"}
         </p>
       </div>
     `;
@@ -227,6 +229,11 @@
       return;
     }
 
+    if (!currentItem || !currentItem._id) {
+      errorEl.textContent = "No item available. Check back soon!";
+      return;
+    }
+
     const btn = document.getElementById("order-btn");
     btn.disabled = true;
     btn.textContent = "Placing order…";
@@ -235,7 +242,17 @@
       const res = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerName: nameDraft.trim() }),
+        body: JSON.stringify({
+          customerName: nameDraft.trim(),
+          restaurantId: currentItem.restaurant._id || currentItem.restaurant,
+          items: [
+            {
+              menuItem: currentItem._id,
+              quantity: 1,
+              price: currentItem.price,
+            },
+          ],
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not place order");
@@ -280,7 +297,7 @@
 
   // Fires when a rider accepts ANY order - we only care if it's ours.
   socket.on("order:updated", (updatedOrder) => {
-    if (myOrder && updatedOrder.id === myOrder.id) {
+    if (myOrder && updatedOrder._id === myOrder._id) {
       myOrder = updatedOrder;
       render();
     }

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Restaurant Dashboard</title>
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2B2420;
+    --muted: #8A7F73;
+    --accent: #C4501F;
+    --accent-soft: #F3E2D5;
+    --line: #EAE2D8;
+    --live: #2F7A4F;
+    --live-soft: #E3F0E8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 32px 24px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  header > div:first-child h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header > div:first-child p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .header-right {
+    text-align: right;
+  }
+  .restaurant-name {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .logout-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .logout-btn:hover { opacity: 0.9; }
+  #connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  #connection-status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  #connection-status.online .dot {
+    background: var(--live);
+  }
+  main {
+    padding: 32px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .section {
+    margin-bottom: 40px;
+  }
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+  #list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  .item-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .item-card.is-live {
+    background: var(--live-soft);
+    border-color: var(--live);
+  }
+  .item-info h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .item-info p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .price {
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--live);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    transition: all 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled {
+    background: var(--line);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+  }
+  #error {
+    background: #FFEBEE;
+    color: #D32F2F;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🍽️ Your Restaurant Dashboard</h1>
+    <p>Pick which item customers see right now. Changes go live instantly.</p>
+    <div id="connection-status">
+      <span class="dot"></span>
+      <span id="connection-text">Connecting…</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="restaurant-name" id="restaurantName"></div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<main>
+  <div id="error"></div>
+
+  <div class="section">
+    <h2 class="section-title">Your Menu</h2>
+    <div id="list"></div>
+    <div id="empty" class="empty-state" style="display:none">
+      No menu items yet. Add some to get started!
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const API_BASE = "http://localhost:4000";
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  const errorEl = document.getElementById("error");
+  const statusEl = document.getElementById("connection-status");
+  const statusText = document.getElementById("connection-text");
+  const restaurantNameEl = document.getElementById("restaurantName");
+
+  let items = [];
+  let token = null;
+  let user = null;
+
+  // Check if user is logged in
+  function checkAuth() {
+    token = localStorage.getItem("restaurantToken");
+    user = localStorage.getItem("restaurantUser");
+
+    if (!token || !user) {
+      window.location.href = "restaurant-dashboard-login.html";
+      return false;
+    }
+
+    user = JSON.parse(user);
+    restaurantNameEl.textContent = user.restaurant.name;
+    return true;
+  }
+
+  function logout() {
+    localStorage.removeItem("restaurantToken");
+    localStorage.removeItem("restaurantUser");
+    window.location.href = "restaurant-dashboard-login.html";
+  }
+
+  function renderItems() {
+    if (items.length === 0) {
+      listEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    listEl.innerHTML = "";
+    items.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "item-card" + (item.isDisplayed ? " is-live" : "");
+
+      const info = document.createElement("div");
+      info.className = "item-info";
+      info.innerHTML = `
+        <h3>${item.name}</h3>
+        <p class="price">₹${item.price}</p>
+        ${item.isDisplayed ? '<span class="badge">LIVE</span>' : ""}
+      `;
+
+      const btn = document.createElement("button");
+      btn.textContent = item.isDisplayed ? "Currently displayed" : "Display this item";
+      btn.disabled = item.isDisplayed;
+      btn.onclick = () => setDisplayed(item._id);
+
+      card.appendChild(info);
+      card.appendChild(btn);
+      listEl.appendChild(card);
+    });
+  }
+
+  async function loadItems() {
+    try {
+      const res = await fetch(`${API_BASE}/api/menu/items/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          logout();
+          return;
+        }
+        throw new Error("Failed to load items");
+      }
+
+      items = await res.json();
+      renderItems();
+    } catch (err) {
+      errorEl.textContent = "Could not reach the backend. Is server.js running on port 4000?";
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function setDisplayed(id) {
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard/items/${id}/display`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Could not update displayed item");
+      
+      const updatedItem = await res.json();
+      items = items.map((item) => ({
+        ...item,
+        isDisplayed: item._id === updatedItem._id,
+      }));
+      renderItems();
+    } catch (err) {
+      errorEl.textContent = "Could not update the displayed item. Check the backend connection.";
+      errorEl.style.display = "block";
+    }
+  }
+
+  // Connect to socket.io for real-time updates
+  const socket = io(API_BASE);
+
+  socket.on("connect", () => {
+    statusEl.classList.add("online");
+    statusText.textContent = "Live";
+  });
+
+  socket.on("disconnect", () => {
+    statusEl.classList.remove("online");
+    statusText.textContent = "Disconnected";
+  });
+
+  socket.on("menu:updated", (updatedItem) => {
+    items = items.map((item) => ({
+      ...item,
+      isDisplayed: item._id === updatedItem._id,
+    }));
+    renderItems();
+  });
+
+  // Initialize
+  if (checkAuth()) {
+    loadItems();
+  }
+</script>
+
+</body>
+</html>

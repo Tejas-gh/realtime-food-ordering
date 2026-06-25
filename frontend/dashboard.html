@@ -200,7 +200,7 @@
       const btn = document.createElement("button");
       btn.textContent = item.isDisplayed ? "Currently displayed" : "Display this item";
       btn.disabled = item.isDisplayed;
-      btn.onclick = () => setDisplayed(item.id);
+      btn.onclick = () => setDisplayed(item._id);
 
       card.appendChild(info);
       card.appendChild(btn);
@@ -245,14 +245,17 @@
       .reverse()
       .map((order) => {
         const isAccepted = order.status === "accepted";
+        const itemName = order.items?.[0]?.menuItem?.name || "Unknown item";
+        const itemPrice = order.totalPrice || 0;
+        const customerName = order.customer?.name || order.customerName || "Guest";
         return `
           <div class="item-card">
             <div class="item-info">
-              <h3>${order.itemName} — ${order.customerName}</h3>
-              <p class="price">₹${order.itemPrice} · ${formatTime(order.createdAt)}</p>
+              <h3>${itemName} — ${customerName}</h3>
+              <p class="price">₹${itemPrice} · ${formatTime(order.createdAt)}</p>
             </div>
             <span class="status-pill ${isAccepted ? "status-accepted" : "status-pending"}">
-              ${isAccepted ? `Accepted · ${order.riderName}` : "Pending"}
+              ${isAccepted ? `Accepted` : "Pending"}
             </span>
           </div>
         `;
@@ -287,7 +290,7 @@
   socket.on("menu:updated", (updatedItem) => {
     items = items.map((item) => ({
       ...item,
-      isDisplayed: item.id === updatedItem.id,
+      isDisplayed: item._id === updatedItem._id,
     }));
     renderItems();
   });
@@ -298,7 +301,7 @@
   });
 
   socket.on("order:updated", (updatedOrder) => {
-    orders = orders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+    orders = orders.map((o) => (o._id === updatedOrder._id ? updatedOrder : o));
     renderOrders();
   });
 

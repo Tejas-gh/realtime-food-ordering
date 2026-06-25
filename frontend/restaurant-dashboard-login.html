@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Restaurant Dashboard - Login</title>
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2B2420;
+    --muted: #8A7F73;
+    --accent: #C4501F;
+    --accent-soft: #F3E2D5;
+    --line: #EAE2D8;
+    --live: #2F7A4F;
+    --live-soft: #E3F0E8;
+    --error: #D32F2F;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: 40px 24px;
+  }
+  .login-box {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 40px 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--line);
+  }
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+  }
+  header p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 24px;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled {
+    background: var(--muted);
+    cursor: not-allowed;
+  }
+  .error {
+    background: #FFEBEE;
+    color: var(--error);
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .demo-credentials {
+    background: var(--live-soft);
+    border: 1px solid var(--live);
+    padding: 14px;
+    border-radius: 6px;
+    margin-top: 24px;
+    font-size: 12px;
+  }
+  .demo-credentials h3 {
+    margin: 0 0 10px;
+    color: var(--live);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .demo-credentials p {
+    margin: 0 0 4px;
+    color: var(--ink);
+    font-family: monospace;
+    font-size: 11px;
+  }
+  .loading {
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-container">
+  <div class="login-box">
+    <header>
+      <h1>🍽️ Restaurant Dashboard</h1>
+      <p>Login to manage your menu</p>
+    </header>
+
+    <div class="error" id="error"></div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required />
+      </div>
+
+      <button type="submit" id="loginBtn">Login</button>
+    </form>
+
+    <div class="demo-credentials">
+      <h3>Demo Credentials</h3>
+      <p>manager@tastybites.com / password123</p>
+      <p>manager@spiceroute.com / password123</p>
+      <p>manager@pizzaplanet.com / password123</p>
+      <p>manager@dragonwok.com / password123</p>
+      <p>manager@burgerbarn.com / password123</p>
+      <p>manager@sweetooth.com / password123</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const API_BASE = "http://localhost:4000";
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById("error");
+    const loginBtn = document.getElementById("loginBtn");
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    errorEl.textContent = "";
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in...";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/restaurant-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      // Save token and redirect to dashboard
+      localStorage.setItem("restaurantToken", data.token);
+      localStorage.setItem("restaurantUser", JSON.stringify(data.user));
+      window.location.href = "restaurant-dashboard.html";
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
+    }
+  }
+
+  // If already logged in, redirect to dashboard
+  if (localStorage.getItem("restaurantToken")) {
+    window.location.href = "restaurant-dashboard.html";
+  }
+</script>
+
+</body>
+</html>
