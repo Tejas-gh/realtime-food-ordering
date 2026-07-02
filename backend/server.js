@@ -158,30 +158,32 @@ app.get("/api/restaurants/:restaurantId/menu", async (req, res) => {
   }
 });
 
-// GET currently displayed item for customer app
+// GET currently displayed items for customer app
 app.get("/api/menu/displayed", async (req, res) => {
   try {
-    const displayed = await MenuItem.findOne({ isDisplayed: true }).populate("restaurant");
-    res.json(displayed || null);
+    const displayedItems = await MenuItem.find({ isDisplayed: true, isAvailable: true })
+      .populate("restaurant")
+      .sort({ updatedAt: -1 });
+    res.json(displayedItems);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET currently displayed item for authenticated restaurant
+// GET currently displayed items for authenticated restaurant
 app.get("/api/dashboard/current-item", authenticateRestaurantUser, async (req, res) => {
   try {
-    const displayed = await MenuItem.findOne({
+    const displayedItems = await MenuItem.find({
       restaurant: req.restaurantId,
       isDisplayed: true,
     });
-    res.json(displayed || null);
+    res.json(displayedItems);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST mark one item as displayed for authenticated restaurant (unmark others in same restaurant)
+// POST/PATCH set displayed flag for authenticated restaurant menu item
 app.post("/api/dashboard/items/:id/display", authenticateRestaurantUser, async (req, res) => {
   try {
     const item = await MenuItem.findById(req.params.id);
@@ -194,23 +196,56 @@ app.post("/api/dashboard/items/:id/display", authenticateRestaurantUser, async (
       return res.status(403).json({ error: "This item does not belong to your restaurant" });
     }
 
-    // Unmark all items from this restaurant only
-    await MenuItem.updateMany({ restaurant: req.restaurantId }, { isDisplayed: false });
+    // Backward compatible default keeps existing clients working.
+    const nextDisplayed =
+      typeof req.body?.isDisplayed === "boolean" ? req.body.isDisplayed : true;
 
-    // Mark this one as displayed
-    item.isDisplayed = true;
+    item.isDisplayed = nextDisplayed;
     await item.save();
 
-    const displayedItem = await item.populate("restaurant");
-    io.emit("menu:updated", displayedItem);
+    const updatedItem = await item.populate("restaurant");
+    io.emit("menu:updated", {
+      type: "item",
+      item: updatedItem,
+    });
 
-    res.json(displayedItem);
+    res.json(updatedItem);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST mark one item as displayed, unmark all others (legacy - for non-auth endpoints)
+app.patch("/api/dashboard/items/:id/display", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+
+    if (item.restaurant.toString() !== req.restaurantId) {
+      return res.status(403).json({ error: "This item does not belong to your restaurant" });
+    }
+
+    if (typeof req.body?.isDisplayed !== "boolean") {
+      return res.status(400).json({ error: "isDisplayed boolean is required" });
+    }
+
+    item.isDisplayed = req.body.isDisplayed;
+    await item.save();
+
+    const updatedItem = await item.populate("restaurant");
+    io.emit("menu:updated", {
+      type: "item",
+      item: updatedItem,
+    });
+
+    res.json(updatedItem);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST mark one item as displayed (legacy - non-auth endpoint)
 app.post("/api/menu/items/:id/display", async (req, res) => {
   try {
     const item = await MenuItem.findById(req.params.id);
@@ -218,17 +253,19 @@ app.post("/api/menu/items/:id/display", async (req, res) => {
       return res.status(404).json({ error: "Menu item not found" });
     }
 
-    // Unmark all items
-    await MenuItem.updateMany({}, { isDisplayed: false });
+    const nextDisplayed =
+      typeof req.body?.isDisplayed === "boolean" ? req.body.isDisplayed : true;
 
-    // Mark this one as displayed
-    item.isDisplayed = true;
+    item.isDisplayed = nextDisplayed;
     await item.save();
 
-    const displayedItem = await item.populate("restaurant");
-    io.emit("menu:updated", displayedItem);
+    const updatedItem = await item.populate("restaurant");
+    io.emit("menu:updated", {
+      type: "item",
+      item: updatedItem,
+    });
 
-    res.json(displayedItem);
+    res.json(updatedItem);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

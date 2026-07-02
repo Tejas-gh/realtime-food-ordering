@@ -269,7 +269,8 @@
   async function loadDisplayedItem() {
     try {
       const res = await fetch(`${API_BASE}/api/menu/displayed`);
-      currentItem = await res.json();
+      const displayed = await res.json();
+      currentItem = Array.isArray(displayed) ? displayed[0] || null : displayed;
       render();
     } catch (err) {
       contentEl.innerHTML = `<div class="empty-state">Could not reach the backend. Is server.js running?</div>`;
@@ -290,8 +291,9 @@
 
   // Only matters before an order is placed - once placed, the item card
   // is replaced by the order tracker and stops reacting to menu changes.
-  socket.on("menu:updated", (updatedItem) => {
-    currentItem = updatedItem;
+  socket.on("menu:updated", (payload) => {
+    const updatedItem = payload?.item || payload;
+    currentItem = updatedItem || currentItem;
     if (!myOrder) render();
   });
 

@@ -255,9 +255,8 @@
       `;
 
       const btn = document.createElement("button");
-      btn.textContent = item.isDisplayed ? "Currently displayed" : "Display this item";
-      btn.disabled = item.isDisplayed;
-      btn.onclick = () => setDisplayed(item._id);
+      btn.textContent = item.isDisplayed ? "Remove from live" : "Display this item";
+      btn.onclick = () => setDisplayed(item._id, !item.isDisplayed);
 
       card.appendChild(info);
       card.appendChild(btn);
@@ -287,11 +286,15 @@
     }
   }
 
-  async function setDisplayed(id) {
+  async function setDisplayed(id, isDisplayed) {
     try {
       const res = await fetch(`${API_BASE}/api/dashboard/items/${id}/display`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isDisplayed }),
       });
 
       if (!res.ok) throw new Error("Could not update displayed item");
@@ -299,7 +302,7 @@
       const updatedItem = await res.json();
       items = items.map((item) => ({
         ...item,
-        isDisplayed: item._id === updatedItem._id,
+        isDisplayed: item._id === updatedItem._id ? updatedItem.isDisplayed : item.isDisplayed,
       }));
       renderItems();
     } catch (err) {
@@ -321,10 +324,12 @@
     statusText.textContent = "Disconnected";
   });
 
-  socket.on("menu:updated", (updatedItem) => {
+  socket.on("menu:updated", (payload) => {
+    const updatedItem = payload?.item || payload;
+    if (!updatedItem?._id) return;
     items = items.map((item) => ({
       ...item,
-      isDisplayed: item._id === updatedItem._id,
+      isDisplayed: item._id === updatedItem._id ? updatedItem.isDisplayed : item.isDisplayed,
     }));
     renderItems();
   });
