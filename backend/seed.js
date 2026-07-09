@@ -1,18 +1,37 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const connectDB = require("./config/db");
 const Restaurant = require("./models/Restaurant");
 const MenuItem = require("./models/MenuItem");
 const RestaurantUser = require("./models/RestaurantUser");
+const Customer = require("./models/Customer");
+const Rider = require("./models/Rider");
 
 const seedDatabase = async () => {
   try {
     await connectDB();
 
-    // Clear existing data
-    await Restaurant.deleteMany({});
-    await MenuItem.deleteMany({});
-    await RestaurantUser.deleteMany({});
+    const shouldReset = process.env.RESET_DB === "true";
+
+    if (shouldReset) {
+      // Explicit reset only when requested.
+      await Restaurant.deleteMany({});
+      await MenuItem.deleteMany({});
+      await RestaurantUser.deleteMany({});
+      await Customer.deleteMany({});
+      await Rider.deleteMany({});
+    } else {
+      const restaurantCount = await Restaurant.countDocuments();
+      const customerCount = await Customer.countDocuments();
+      if (restaurantCount > 0 || customerCount > 0) {
+        console.log("Seed skipped: database already has data. Use RESET_DB=true npm run seed to rebuild demo records.");
+        mongoose.connection.close();
+        return;
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash("password123", 10);
 
     // Create restaurants based on frontend mockData
     const restaurants = await Restaurant.create([
@@ -212,7 +231,7 @@ const seedDatabase = async () => {
     const restaurantUsers = await RestaurantUser.create([
       {
         email: "manager@tastybites.com",
-        password: "password123", // In production, use bcrypt!
+        passwordHash: hashedPassword,
         name: "Tasty Bites Manager",
         restaurant: restaurants[0]._id,
         role: "manager",
@@ -220,7 +239,7 @@ const seedDatabase = async () => {
       },
       {
         email: "manager@spiceroute.com",
-        password: "password123",
+        passwordHash: hashedPassword,
         name: "Spice Route Manager",
         restaurant: restaurants[1]._id,
         role: "manager",
@@ -228,7 +247,7 @@ const seedDatabase = async () => {
       },
       {
         email: "manager@pizzaplanet.com",
-        password: "password123",
+        passwordHash: hashedPassword,
         name: "Pizza Planet Manager",
         restaurant: restaurants[2]._id,
         role: "manager",
@@ -236,7 +255,7 @@ const seedDatabase = async () => {
       },
       {
         email: "manager@dragonwok.com",
-        password: "password123",
+        passwordHash: hashedPassword,
         name: "Dragon Wok Manager",
         restaurant: restaurants[3]._id,
         role: "manager",
@@ -244,7 +263,7 @@ const seedDatabase = async () => {
       },
       {
         email: "manager@burgerbarn.com",
-        password: "password123",
+        passwordHash: hashedPassword,
         name: "Burger Barn Manager",
         restaurant: restaurants[4]._id,
         role: "manager",
@@ -252,10 +271,38 @@ const seedDatabase = async () => {
       },
       {
         email: "manager@sweetooth.com",
-        password: "password123",
+        passwordHash: hashedPassword,
         name: "Sweet Tooth Manager",
         restaurant: restaurants[5]._id,
         role: "manager",
+        isActive: true,
+      },
+    ]);
+
+    const customers = await Customer.create([
+      {
+        name: "Demo Customer",
+        email: "customer@foodexpress.com",
+        phone: "555-1000",
+        address: "1 Demo Street, Flavor Town",
+        passwordHash: hashedPassword,
+        isActive: true,
+      },
+    ]);
+
+    const riders = await Rider.create([
+      {
+        name: "Rider One",
+        email: "rider1@foodexpress.com",
+        phone: "555-2001",
+        passwordHash: hashedPassword,
+        isActive: true,
+      },
+      {
+        name: "Rider Two",
+        email: "rider2@foodexpress.com",
+        phone: "555-2002",
+        passwordHash: hashedPassword,
         isActive: true,
       },
     ]);
@@ -264,9 +311,19 @@ const seedDatabase = async () => {
     console.log(`📍 Created ${restaurants.length} restaurants`);
     console.log(`🍽️  Created ${menuItems.length} menu items`);
     console.log(`👤 Created ${restaurantUsers.length} restaurant staff users`);
+    console.log(`🧑‍🍳 Created ${riders.length} rider users`);
+    console.log(`🛍️  Created ${customers.length} customer users`);
     console.log("\n📋 Restaurant Staff Login Credentials:");
     restaurantUsers.forEach((user) => {
       console.log(`   ${user.email} / password123`);
+    });
+    console.log("\n📋 Customer Login Credentials:");
+    customers.forEach((customer) => {
+      console.log(`   ${customer.email} / password123`);
+    });
+    console.log("\n📋 Rider Login Credentials:");
+    riders.forEach((rider) => {
+      console.log(`   ${rider.email} / password123`);
     });
 
     mongoose.connection.close();

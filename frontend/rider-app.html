@@ -75,6 +75,53 @@
     border-color: var(--accent);
   }
 
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 18px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .auth-card h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .auth-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .auth-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+  }
+
+  .auth-btn:disabled {
+    background: var(--accent-soft);
+    color: var(--muted);
+    cursor: default;
+  }
+
+  .auth-error {
+    color: #B42318;
+    font-size: 13px;
+    display: none;
+  }
+
+  .hidden { display: none !important; }
+
   main {
     width: 100%;
     max-width: 480px;
@@ -135,7 +182,16 @@
   <h1>Available deliveries</h1>
   <p>New orders show up here the moment they're placed.</p>
   <div id="connection-status"><span class="dot"></span><span id="connection-text">Connecting…</span></div>
-  <input class="name-input" id="rider-name" type="text" placeholder="Your name (used when you accept a delivery)" />
+  <input class="name-input hidden" id="rider-name" type="text" placeholder="Your name (used when you accept a delivery)" />
+
+  <div class="auth-card" id="auth-card">
+    <h2>Rider sign in</h2>
+    <p>Use the demo rider account seeded in the backend.</p>
+    <input class="name-input" id="rider-email" type="email" placeholder="Email" />
+    <input class="name-input" id="rider-password" type="password" placeholder="Password" />
+    <div class="auth-error" id="auth-error"></div>
+    <button class="auth-btn" id="auth-btn" type="button">Sign in</button>
+  </div>
 </header>
 
 <main>
@@ -150,8 +206,69 @@
   const statusEl = document.getElementById("connection-status");
   const statusText = document.getElementById("connection-text");
   const riderNameInput = document.getElementById("rider-name");
+  const authCard = document.getElementById("auth-card");
+  const authError = document.getElementById("auth-error");
+  const authBtn = document.getElementById("auth-btn");
+  const riderEmailInput = document.getElementById("rider-email");
+  const riderPasswordInput = document.getElementById("rider-password");
+
+  let authToken = localStorage.getItem("riderToken");
+  let riderUser = null;
+  try {
+    riderUser = localStorage.getItem("riderUser") ? JSON.parse(localStorage.getItem("riderUser")) : null;
+  } catch (error) {
+    riderUser = null;
+  }
 
   let deliveries = []; // orders with status "pending"
+
+  function setSignedInState(user, token) {
+    authToken = token;
+    riderUser = user;
+    localStorage.setItem("riderToken", token);
+    localStorage.setItem("riderUser", JSON.stringify(user));
+    riderNameInput.value = user?.name || "";
+    riderNameInput.classList.remove("hidden");
+    authCard.classList.add("hidden");
+  }
+
+  function requireAuthHeaders() {
+    return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  }
+
+  async function signIn() {
+    const email = riderEmailInput.value.trim();
+    const password = riderPasswordInput.value;
+    authError.style.display = "none";
+    if (!email || !password) {
+      authError.textContent = "Enter email and password.";
+      authError.style.display = "block";
+      return;
+    }
+
+    authBtn.disabled = true;
+    authBtn.textContent = "Signing in...";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/rider-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+      setSignedInState(data.user, data.token);
+      await loadAvailableDeliveries();
+    } catch (error) {
+      authError.textContent = error.message;
+      authError.style.display = "block";
+    } finally {
+      authBtn.disabled = false;
+      authBtn.textContent = "Sign in";
+    }
+  }
 
   function formatTime(iso) {
     return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -195,7 +312,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/orders/${orderId}/accept`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...requireAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ riderName }),
       });
       if (!res.ok) {
@@ -212,8 +329,14 @@
   }
 
   async function loadAvailableDeliveries() {
+    if (!authToken) {
+      listEl.innerHTML = `<div class="empty-state">Sign in to see available deliveries.</div>`;
+      return;
+    }
     try {
-      const res = await fetch(`${API_BASE}/api/orders/available`);
+      const res = await fetch(`${API_BASE}/api/orders/available`, {
+        headers: requireAuthHeaders(),
+      });
       deliveries = await res.json();
       render();
     } catch (err) {
@@ -235,6 +358,7 @@
 
   // A brand new order just came in - it's available for anyone to accept
   socket.on("order:new", (order) => {
+    if (!authToken) return;
     deliveries.push(order);
     render();
   });
@@ -242,8 +366,22 @@
   // Someone accepted an order (maybe us, maybe another rider) - either way
   // it's no longer available, so remove it from this list.
   socket.on("order:updated", (updatedOrder) => {
+    if (!authToken) return;
     deliveries = deliveries.filter((d) => d.id !== updatedOrder.id);
     render();
+  });
+
+  if (authToken && riderUser) {
+    setSignedInState(riderUser, authToken);
+  } else {
+    listEl.innerHTML = `<div class="empty-state">Sign in to see available deliveries.</div>`;
+  }
+
+  authBtn.onclick = signIn;
+  riderPasswordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      signIn();
+    }
   });
 
   loadAvailableDeliveries();

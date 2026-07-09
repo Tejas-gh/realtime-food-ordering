@@ -170,6 +170,11 @@
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
   const API_BASE = "http://localhost:4000";
+  const token = localStorage.getItem("restaurantToken");
+
+  if (!token) {
+    window.location.href = "restaurant-dashboard-login.html";
+  }
 
   const listEl = document.getElementById("list");
   const ordersListEl = document.getElementById("orders-list");
@@ -209,7 +214,9 @@
 
   async function loadItems() {
     try {
-      const res = await fetch(`${API_BASE}/api/menu/items`);
+      const res = await fetch(`${API_BASE}/api/menu/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       items = await res.json();
       renderItems();
     } catch (err) {
@@ -221,7 +228,10 @@
     try {
       await fetch(`${API_BASE}/api/menu/items/${id}/display`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ isDisplayed }),
       });
     } catch (err) {
@@ -268,7 +278,9 @@
 
   async function loadOrders() {
     try {
-      const res = await fetch(`${API_BASE}/api/orders`);
+      const res = await fetch(`${API_BASE}/api/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       orders = await res.json();
       renderOrders();
     } catch (err) {
