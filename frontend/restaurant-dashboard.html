@@ -79,6 +79,206 @@
     flex-shrink: 0;
   }
 
+  /* order status colours */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+  }
+  .s-pending   { background:rgba(251,191,36,0.12);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25); }
+  .s-confirmed { background:rgba(96,165,250,0.12);  color:#60a5fa; border:1px solid rgba(96,165,250,0.25); }
+  .s-preparing { background:rgba(255,107,53,0.12);  color:var(--accent); border:1px solid rgba(255,107,53,0.25); }
+  .s-ready     { background:rgba(167,139,250,0.12); color:#a78bfa; border:1px solid rgba(167,139,250,0.25); }
+  .s-on-the-way{ background:rgba(62,207,142,0.12);  color:var(--green); border:1px solid var(--green-border); }
+  .s-delivered { background:rgba(62,207,142,0.15);  color:var(--green); border:1px solid var(--green-border); }
+  .s-cancelled { background:var(--red-soft);        color:var(--red);   border:1px solid var(--red-border); }
+
+  /* order cards */
+  .order-list { display:flex; flex-direction:column; gap:14px; }
+
+  .order-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .order-card:hover { border-color:rgba(255,107,53,0.3); box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+
+  .order-card.new-order {
+    border-color: var(--accent);
+    animation: newOrderPulse 1s ease 3;
+  }
+
+  @keyframes newOrderPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,107,53,0); }
+    50%      { box-shadow: 0 0 0 6px rgba(255,107,53,0.2); }
+  }
+
+  .order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line-2);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .order-id {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    font-family: monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .order-time {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+
+  .order-body {
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .order-customer {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+
+  .order-address {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .order-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .order-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+
+  .order-item-qty {
+    background: var(--surface-3);
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .order-total {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .order-total-label {
+    font-size: 10px;
+    color: var(--ink-3);
+    text-align: right;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .order-footer {
+    padding: 10px 18px 14px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--line-2);
+    align-items: center;
+  }
+
+  .btn-order-action {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-order-action:active { transform: scale(0.97); }
+
+  .btn-prepare {
+    background: linear-gradient(135deg, var(--accent), #e85d25);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(255,107,53,0.25);
+  }
+
+  .btn-prepare:hover { box-shadow: 0 4px 16px rgba(255,107,53,0.4); }
+
+  .btn-ready {
+    background: rgba(167,139,250,0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(167,139,250,0.3);
+  }
+
+  .btn-ready:hover { background: rgba(167,139,250,0.25); }
+
+  .btn-order-action:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+  /* order filter tabs */
+  .order-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .order-tab {
+    padding: 7px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .order-tab:hover { background: var(--surface-3); color: var(--ink); }
+
+  .order-tab.active {
+    background: rgba(255,107,53,0.12);
+    border-color: rgba(255,107,53,0.3);
+    color: var(--accent);
+  }
+
   /* Restaurant info pill */
   .restaurant-pill {
     background: var(--surface-2);
@@ -735,6 +935,12 @@
       </button>
     </li>
     <li>
+      <button class="nav-link" onclick="showPage('orders', this)">
+        <span class="nav-icon">🧾</span> Orders
+        <span class="nav-badge" id="pendingBadge" style="display:none">0</span>
+      </button>
+    </li>
+    <li>
       <button class="nav-link" onclick="showPage('overview', this)">
         <span class="nav-icon">📊</span> Overview
       </button>
@@ -769,6 +975,49 @@
     <div class="topbar-right">
       <div style="font-size:13px; color:var(--ink-2);">Hi, <span id="ownerName" style="color:var(--ink);font-weight:600;"></span> 👋</div>
     </div>
+  </div>
+
+  <!-- ── ORDERS PAGE ── -->
+  <div class="page" id="pageOrders">
+    <div class="error-bar" id="ordersErrorBar"><span>⚠️</span><span id="ordersErrorMsg"></span></div>
+
+    <!-- order stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-top">
+          <div><div class="stat-value" id="oStatPending">—</div><div class="stat-label">Pending</div></div>
+          <div class="stat-icon orange">🔔</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div><div class="stat-value" id="oStatPreparing">—</div><div class="stat-label">Preparing</div></div>
+          <div class="stat-icon blue">👨‍🍳</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div><div class="stat-value" id="oStatOnWay">—</div><div class="stat-label">On the Way</div></div>
+          <div class="stat-icon purple">🚴</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div><div class="stat-value" id="oStatDelivered">—</div><div class="stat-label">Delivered Today</div></div>
+          <div class="stat-icon green">✅</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- filter tabs -->
+    <div class="order-tabs">
+      <button class="order-tab active" onclick="setOrderFilter('active', this)">🔥 Active</button>
+      <button class="order-tab" onclick="setOrderFilter('all', this)">All Orders</button>
+      <button class="order-tab" onclick="setOrderFilter('delivered', this)">✅ Delivered</button>
+      <button class="order-tab" onclick="setOrderFilter('cancelled', this)">❌ Cancelled</button>
+    </div>
+
+    <div class="order-list" id="orderList"></div>
   </div>
 
   <!-- ── MENU PAGE ── -->
@@ -982,6 +1231,7 @@
   /* ── Page navigation ── */
   const pages = {
     menu:       { pageId: "pageMenu",       title: "Menu Items",      sub: "Pick which items customers can see — changes go live instantly." },
+    orders:     { pageId: "pageOrders",     title: "Orders",          sub: "Incoming orders for your restaurant — update status as you prepare them." },
     overview:   { pageId: "pageOverview",   title: "Overview",        sub: "A quick summary of your restaurant's menu performance." },
     restaurant: { pageId: "pageRestaurant", title: "Restaurant Info", sub: "Your restaurant details and account information." },
   };
@@ -995,6 +1245,7 @@
     document.getElementById("topbarTitle").textContent = pages[key].title;
     document.getElementById("topbarSub").textContent   = pages[key].sub;
     if (key === "overview") updateOverview();
+    if (key === "orders" && orders.length === 0) loadOrders();
   }
 
   /* ── Stats ── */
@@ -1164,7 +1415,161 @@
     bar.classList.add("show");
   }
 
-  /* ── Socket.io ── */
+  /* ── Orders ── */
+  let orders        = [];
+  let orderFilter   = "active";
+
+  function timeAgo(dateStr) {
+    const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+    if (diff < 60)  return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+  }
+
+  function statusClass(s) {
+    return { pending:"s-pending", confirmed:"s-confirmed", preparing:"s-preparing",
+             ready:"s-ready", "on-the-way":"s-on-the-way", delivered:"s-delivered", cancelled:"s-cancelled" }[s] || "";
+  }
+
+  function statusLabel(s) {
+    return { pending:"⏳ Pending", confirmed:"✅ Confirmed", preparing:"👨‍🍳 Preparing",
+             ready:"📦 Ready", "on-the-way":"🚴 On the Way", delivered:"✔ Delivered", cancelled:"✖ Cancelled" }[s] || s;
+  }
+
+  function updateOrderStats() {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("oStatPending",   orders.filter(o => o.status === "pending" || o.status === "confirmed").length);
+    set("oStatPreparing", orders.filter(o => o.status === "preparing").length);
+    set("oStatOnWay",     orders.filter(o => o.status === "on-the-way").length);
+    set("oStatDelivered", orders.filter(o => o.status === "delivered" && new Date(o.createdAt) >= today).length);
+
+    // pending badge in sidebar
+    const pending = orders.filter(o => o.status === "pending" || o.status === "confirmed").length;
+    const badge   = document.getElementById("pendingBadge");
+    if (badge) {
+      badge.textContent    = pending;
+      badge.style.display  = pending > 0 ? "" : "none";
+    }
+  }
+
+  function setOrderFilter(f, btn) {
+    orderFilter = f;
+    document.querySelectorAll(".order-tab").forEach(b => b.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+    renderOrders();
+  }
+
+  function renderOrders() {
+    const list = document.getElementById("orderList");
+    updateOrderStats();
+
+    const activeStatuses = ["pending", "confirmed", "preparing", "ready", "on-the-way"];
+    let filtered = orders.filter(o => {
+      if (orderFilter === "active")    return activeStatuses.includes(o.status);
+      if (orderFilter === "delivered") return o.status === "delivered";
+      if (orderFilter === "cancelled") return o.status === "cancelled";
+      return true;
+    });
+
+    if (!filtered.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          <h3>${orderFilter === "active" ? "No active orders" : "No orders found"}</h3>
+          <p>${orderFilter === "active" ? "New orders will appear here instantly." : "Try a different filter."}</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    filtered.forEach(order => {
+      const card = document.createElement("div");
+      card.className = "order-card";
+      card.id = "order-" + order._id;
+
+      const itemsHtml = (order.items || []).map(i => `
+        <div class="order-item-row">
+          <span class="order-item-qty">${i.quantity}×</span>
+          <span>${i.name || i.menuItem?.name || "Item"}</span>
+          <span style="margin-left:auto;color:var(--ink-3)">₹${i.price}</span>
+        </div>`).join("");
+
+      // Action button logic
+      let actionBtn = "";
+      if (order.status === "pending") {
+        actionBtn = `<button class="btn-order-action btn-prepare" onclick="updateOrderStatus('${order._id}', 'preparing')" id="obtn-${order._id}">✅ Accept Order</button>`;
+      } else if (order.status === "preparing") {
+        actionBtn = `<button class="btn-order-action btn-ready" onclick="updateOrderStatus('${order._id}', 'ready')" id="obtn-${order._id}">📦 Ready for Pickup</button>`;
+      } else if (order.status === "ready") {
+        actionBtn = `<span style="font-size:12px;color:var(--green);font-weight:600;">🛵 Waiting for rider...</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="order-header">
+          <div>
+            <div class="order-id">#${order._id.slice(-6).toUpperCase()}</div>
+            <div class="order-time">${timeAgo(order.createdAt)}</div>
+          </div>
+          <span class="status-pill ${statusClass(order.status)}">${statusLabel(order.status)}</span>
+        </div>
+        <div class="order-body">
+          <div>
+            <div class="order-customer">👤 ${order.customer?.name || "Customer"}</div>
+            ${order.customer?.address ? `<div class="order-address">📍 ${order.customer.address}</div>` : ""}
+            <div class="order-items-list">${itemsHtml}</div>
+          </div>
+          <div>
+            <div class="order-total-label">Total</div>
+            <div class="order-total">₹${order.totalPrice ?? "—"}</div>
+          </div>
+        </div>
+        <div class="order-footer">
+          ${actionBtn}
+          <span style="margin-left:auto;font-size:11px;color:var(--ink-3)">${new Date(order.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
+        </div>`;
+
+      list.appendChild(card);
+    });
+  }
+
+  async function loadOrders() {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/restaurant`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error("Failed to load orders");
+      orders = await res.json();
+      renderOrders();
+    } catch (err) {
+      const bar = document.getElementById("ordersErrorBar");
+      document.getElementById("ordersErrorMsg").textContent = "Could not load orders. Is the server running?";
+      if (bar) bar.classList.add("show");
+    }
+  }
+
+  async function updateOrderStatus(id, status) {
+    const btn = document.getElementById("obtn-" + id);
+    if (btn) { btn.disabled = true; btn.textContent = "Updating…"; }
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${id}/restaurant-status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      const updated = await res.json();
+      orders = orders.map(o => o._id === updated._id ? updated : o);
+      renderOrders();
+      showToast(status === "preparing" ? "✅ Order accepted! Kitchen is preparing." : "📦 Food is ready! Waiting for rider.", "success");
+    } catch (err) {
+      showToast("Could not update order status.", "error");
+      if (btn) { btn.disabled = false; btn.textContent = status === "preparing" ? "✅ Accept Order" : "📦 Ready for Pickup"; }
+    }
+  }
+
+  /* ── Socket.io — extend with order events ── */
   const socket = io(API_BASE);
 
   socket.on("connect", () => {
@@ -1182,6 +1587,35 @@
     if (!updated?._id) return;
     items = items.map(i => i._id === updated._id ? { ...i, isDisplayed: updated.isDisplayed } : i);
     renderItems();
+  });
+
+  // Real-time: new order placed
+  socket.on("order:new", order => {
+    // Only handle if it belongs to this restaurant
+    const myRestId = user?.restaurant?._id;
+    const orderRestId = order?.restaurant?._id || order?.restaurant;
+    if (!myRestId || orderRestId?.toString() !== myRestId?.toString()) return;
+
+    orders.unshift(order);
+    renderOrders();
+    updateOrderStats();
+    showToast("🔔 New order received!", "success");
+
+    // Flash the Orders nav badge
+    const badge = document.getElementById("pendingBadge");
+    if (badge) badge.style.animation = "none";
+    setTimeout(() => { if (badge) badge.style.animation = ""; }, 50);
+  });
+
+  // Real-time: order status updated by rider
+  socket.on("order:updated", updated => {
+    if (!updated?._id) return;
+    const exists = orders.find(o => o._id === updated._id);
+    if (exists) {
+      orders = orders.map(o => o._id === updated._id ? updated : o);
+      renderOrders();
+      updateOrderStats();
+    }
   });
 
   /* ── Init ── */

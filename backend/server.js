@@ -631,10 +631,10 @@ app.get("/api/orders", authenticateJwt, requireRole("restaurant", "rider"), asyn
   }
 });
 
-// GET available orders (pending)
-app.get("/api/orders/available", authenticateJwt, requireRole("rider"), async (req, res) => {
+// GET orders for the authenticated restaurant only
+app.get("/api/orders/restaurant", authenticateRestaurantUser, async (req, res) => {
   try {
-    const orders = await Order.find({ status: "pending" })
+    const orders = await Order.find({ restaurant: req.restaurantId })
       .populate("restaurant")
       .populate("items.menuItem")
       .sort({ createdAt: -1 });
@@ -644,21 +644,33 @@ app.get("/api/orders/available", authenticateJwt, requireRole("rider"), async (r
   }
 });
 
-// POST accept order (rider accepts delivery)
+// GET available orders for rider — only 'ready' orders (food packed, waiting for pickup)
+app.get("/api/orders/available", authenticateJwt, requireRole("rider"), async (req, res) => {
+  try {
+    const orders = await Order.find({ status: "ready" })
+      .populate("restaurant")
+      .populate("items.menuItem")
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST rider picks up a ready order → on-the-way
 app.post("/api/orders/:id/accept", authenticateJwt, requireRole("rider"), async (req, res) => {
   try {
-    const { riderName } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    if (order.status !== "pending") {
-      return res.status(409).json({ error: "This order has already been accepted" });
+    if (order.status !== "ready") {
+      return res.status(409).json({ error: "This order is not ready for pickup yet" });
     }
 
-    order.status = "confirmed";
+    order.status = "on-the-way";
     await order.save();
     const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
 
@@ -669,7 +681,7 @@ app.post("/api/orders/:id/accept", authenticateJwt, requireRole("rider"), async 
   }
 });
 
-// PATCH update order status
+// PATCH update order status (rider)
 app.patch("/api/orders/:id/status", authenticateJwt, requireRole("rider"), async (req, res) => {
   try {
     const { status } = req.body;
@@ -682,6 +694,37 @@ app.patch("/api/orders/:id/status", authenticateJwt, requireRole("rider"), async
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
+    }
+
+    order.status = status;
+    await order.save();
+    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+
+    io.emit("order:updated", updatedOrder);
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH update order status (restaurant — can mark preparing or ready)
+app.patch("/api/orders/:id/restaurant-status", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowedStatuses = ["preparing", "ready"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: `Restaurant can only set status to: ${allowedStatuses.join(", ")}` });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Ensure this order belongs to the authenticated restaurant
+    if (order.restaurant.toString() !== req.restaurantId) {
+      return res.status(403).json({ error: "This order does not belong to your restaurant" });
     }
 
     order.status = status;
