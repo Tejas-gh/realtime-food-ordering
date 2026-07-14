@@ -8,6 +8,9 @@ const Restaurant = require("./models/Restaurant");
 const MenuItem = require("./models/MenuItem");
 const Order = require("./models/Order");
 const RestaurantUser = require("./models/RestaurantUser");
+const Rider = require("./models/Rider");
+const Customer = require("./models/Customer");
+const { hashPassword, verifyPassword } = require("./utils/password");
 
 const app = express();
 app.use(cors());
@@ -82,6 +85,205 @@ app.post("/api/auth/restaurant-login", async (req, res) => {
   }
 });
 
+const authenticateRider = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const token = authHeader.substring(7);
+  // Same lightweight scheme as restaurant auth: riderId:phone in base64.
+  const [riderId, phone] = Buffer.from(token, "base64").toString().split(":");
+
+  if (!riderId || !phone) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  const rider = await Rider.findById(riderId);
+  if (!rider || rider.phone !== phone || !rider.isActive) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  req.riderId = riderId;
+  next();
+};
+
+// POST rider sign up
+app.post("/api/auth/rider-signup", async (req, res) => {
+  try {
+    const { name, phone, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ error: "phone is required" });
+    }
+    if (!password) {
+      return res.status(400).json({ error: "password is required" });
+    }
+
+    const existing = await Rider.findOne({ phone: phone.trim() });
+    if (existing) {
+      return res.status(409).json({ error: "An account with this phone number already exists" });
+    }
+
+    const rider = await Rider.create({
+      name: name.trim(),
+      phone: phone.trim(),
+      password: hashPassword(password),
+    });
+
+    const token = Buffer.from(`${rider._id}:${rider.phone}`).toString("base64");
+
+    res.status(201).json({
+      success: true,
+      token,
+      rider: { _id: rider._id, name: rider.name, phone: rider.phone },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST rider login
+app.post("/api/auth/rider-login", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    if (!phone || !password) {
+      return res.status(400).json({ error: "phone and password required" });
+    }
+
+    const rider = await Rider.findOne({ phone: phone.trim() });
+    if (!rider || !verifyPassword(password, rider.password)) {
+      return res.status(401).json({ error: "Invalid phone number or password" });
+    }
+    if (!rider.isActive) {
+      return res.status(401).json({ error: "Account is inactive" });
+    }
+
+    const token = Buffer.from(`${rider._id}:${rider.phone}`).toString("base64");
+
+    res.json({
+      success: true,
+      token,
+      rider: { _id: rider._id, name: rider.name, phone: rider.phone },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const authenticateCustomer = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const token = authHeader.substring(7);
+  // Same lightweight scheme as rider/restaurant auth: customerId:email in base64.
+  const [customerId, email] = Buffer.from(token, "base64").toString().split(":");
+
+  if (!customerId || !email) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  const customer = await Customer.findById(customerId);
+  if (!customer || customer.email !== email || !customer.isActive) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  req.customerId = customer._id;
+  req.customer = customer;
+  next();
+};
+
+// POST customer sign up
+app.post("/api/auth/customer-signup", async (req, res) => {
+  try {
+    const { name, email, phone, address, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: "email is required" });
+    }
+    if (!password) {
+      return res.status(400).json({ error: "password is required" });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await Customer.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ error: "An account with this email already exists" });
+    }
+
+    const customer = await Customer.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone ? phone.trim() : "",
+      address: address ? address.trim() : "",
+      password: hashPassword(password),
+    });
+
+    const token = Buffer.from(`${customer._id}:${customer.email}`).toString("base64");
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        _id: customer._id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        role: "customer",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST customer login
+app.post("/api/auth/customer-login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password required" });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const customer = await Customer.findOne({ email: normalizedEmail });
+    if (!customer || !verifyPassword(password, customer.password)) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    if (!customer.isActive) {
+      return res.status(401).json({ error: "Account is inactive" });
+    }
+
+    const token = Buffer.from(`${customer._id}:${customer.email}`).toString("base64");
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        _id: customer._id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        role: "customer",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ---------- Restaurant Endpoints ----------
 
 // GET all restaurants
@@ -133,6 +335,33 @@ app.get("/api/menu/items/dashboard", authenticateRestaurantUser, async (req, res
   try {
     const items = await MenuItem.find({ restaurant: req.restaurantId });
     res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST create a new menu item for the authenticated restaurant
+app.post("/api/menu/items", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const { name, price, emoji, category, description } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) < 0) {
+      return res.status(400).json({ error: "a valid price is required" });
+    }
+
+    const item = await MenuItem.create({
+      name: name.trim(),
+      price: Number(price),
+      emoji: emoji ? emoji.trim() : "",
+      category: category ? category.trim() : "Main",
+      description: description ? description.trim() : "",
+      restaurant: req.restaurantId,
+    });
+
+    res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -237,13 +466,9 @@ app.post("/api/menu/items/:id/display", async (req, res) => {
 // ---------- Orders Endpoints ----------
 
 // POST create new order
-app.post("/api/orders", async (req, res) => {
+app.post("/api/orders", authenticateCustomer, async (req, res) => {
   try {
-    const { customerName, restaurantId, items } = req.body;
-
-    if (!customerName || !customerName.trim()) {
-      return res.status(400).json({ error: "customerName is required" });
-    }
+    const { restaurantId, items } = req.body;
 
     if (!restaurantId) {
       return res.status(400).json({ error: "restaurantId is required" });
@@ -255,8 +480,12 @@ app.post("/api/orders", async (req, res) => {
 
     const order = new Order({
       customer: {
-        name: customerName.trim(),
+        name: req.customer.name,
+        phone: req.customer.phone,
+        email: req.customer.email,
+        address: req.customer.address,
       },
+      customerId: req.customer._id,
       restaurant: restaurantId,
       items: items,
       totalPrice: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -273,12 +502,27 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
+// GET order history for the authenticated customer
+app.get("/api/orders/mine", authenticateCustomer, async (req, res) => {
+  try {
+    const orders = await Order.find({ customerId: req.customerId })
+      .populate("restaurant")
+      .populate("items.menuItem")
+      .populate({ path: "rider", select: "-password" })
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET all orders
 app.get("/api/orders", async (req, res) => {
   try {
     const orders = await Order.find()
       .populate("restaurant")
       .populate("items.menuItem")
+      .populate({ path: "rider", select: "-password" })
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
@@ -300,9 +544,8 @@ app.get("/api/orders/available", async (req, res) => {
 });
 
 // POST accept order (rider accepts delivery)
-app.post("/api/orders/:id/accept", async (req, res) => {
+app.post("/api/orders/:id/accept", authenticateRider, async (req, res) => {
   try {
-    const { riderName } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -313,9 +556,14 @@ app.post("/api/orders/:id/accept", async (req, res) => {
       return res.status(409).json({ error: "This order has already been accepted" });
     }
 
-    order.status = "accepted";
+    order.status = "confirmed";
+    order.rider = req.riderId;
     await order.save();
-    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+    const updatedOrder = await order.populate([
+      "restaurant",
+      "items.menuItem",
+      { path: "rider", select: "-password" },
+    ]);
 
     io.emit("order:updated", updatedOrder);
     res.json(updatedOrder);
@@ -325,7 +573,7 @@ app.post("/api/orders/:id/accept", async (req, res) => {
 });
 
 // PATCH update order status
-app.patch("/api/orders/:id/status", async (req, res) => {
+app.patch("/api/orders/:id/status", authenticateRider, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ["pending", "confirmed", "preparing", "on-the-way", "delivered", "cancelled"];
@@ -339,9 +587,17 @@ app.patch("/api/orders/:id/status", async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    if (order.rider && order.rider.toString() !== req.riderId) {
+      return res.status(403).json({ error: "This order belongs to a different rider" });
+    }
+
     order.status = status;
     await order.save();
-    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+    const updatedOrder = await order.populate([
+      "restaurant",
+      "items.menuItem",
+      { path: "rider", select: "-password" },
+    ]);
 
     io.emit("order:updated", updatedOrder);
     res.json(updatedOrder);

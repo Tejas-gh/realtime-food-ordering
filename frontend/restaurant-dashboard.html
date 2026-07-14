@@ -159,6 +159,36 @@
     padding: 32px;
     color: var(--muted);
   }
+  .add-item-form {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .add-item-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .add-item-form label {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .add-item-form input {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .add-item-form input#newItemName { width: 180px; }
+  .add-item-form input#newItemPrice { width: 90px; }
+  .add-item-form input#newItemEmoji { width: 60px; }
+  .add-item-form input#newItemCategory { width: 120px; }
   #error {
     background: #FFEBEE;
     color: #D32F2F;
@@ -188,6 +218,29 @@
 
 <main>
   <div id="error"></div>
+
+  <div class="section">
+    <h2 class="section-title">Add a Dish</h2>
+    <div class="add-item-form">
+      <div class="field">
+        <label for="newItemName">Name</label>
+        <input id="newItemName" type="text" placeholder="e.g. Veg Biryani" />
+      </div>
+      <div class="field">
+        <label for="newItemPrice">Price (₹)</label>
+        <input id="newItemPrice" type="number" min="0" placeholder="199" />
+      </div>
+      <div class="field">
+        <label for="newItemEmoji">Emoji</label>
+        <input id="newItemEmoji" type="text" placeholder="🍛" />
+      </div>
+      <div class="field">
+        <label for="newItemCategory">Category</label>
+        <input id="newItemCategory" type="text" placeholder="Main" />
+      </div>
+      <button onclick="addItem()">Add Item</button>
+    </div>
+  </div>
 
   <div class="section">
     <h2 class="section-title">Your Menu</h2>
@@ -283,6 +336,61 @@
       renderItems();
     } catch (err) {
       errorEl.textContent = "Could not reach the backend. Is server.js running on port 4000?";
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function addItem() {
+    const nameEl = document.getElementById("newItemName");
+    const priceEl = document.getElementById("newItemPrice");
+    const emojiEl = document.getElementById("newItemEmoji");
+    const categoryEl = document.getElementById("newItemCategory");
+
+    const name = nameEl.value.trim();
+    const price = priceEl.value;
+
+    if (!name) {
+      errorEl.textContent = "Enter a dish name.";
+      errorEl.style.display = "block";
+      return;
+    }
+    if (price === "" || Number(price) < 0) {
+      errorEl.textContent = "Enter a valid price.";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/menu/items`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name,
+          price: Number(price),
+          emoji: emojiEl.value.trim(),
+          category: categoryEl.value.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Could not add the item");
+      }
+
+      const created = await res.json();
+      items = [...items, created];
+      renderItems();
+      errorEl.style.display = "none";
+
+      nameEl.value = "";
+      priceEl.value = "";
+      emojiEl.value = "";
+      categoryEl.value = "";
+    } catch (err) {
+      errorEl.textContent = err.message;
       errorEl.style.display = "block";
     }
   }

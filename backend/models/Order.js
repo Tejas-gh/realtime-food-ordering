@@ -13,6 +13,10 @@ const OrderSchema = new mongoose.Schema(
       email: String,
       address: String,
     },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+    },
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
