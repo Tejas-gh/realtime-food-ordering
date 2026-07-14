@@ -489,6 +489,33 @@ app.get("/api/menu/items/dashboard", authenticateRestaurantUser, async (req, res
   }
 });
 
+// POST create a new menu item for the authenticated restaurant
+app.post("/api/menu/items", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const { name, price, emoji, category, description } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) < 0) {
+      return res.status(400).json({ error: "a valid price is required" });
+    }
+
+    const item = await MenuItem.create({
+      name: name.trim(),
+      price: Number(price),
+      emoji: emoji ? emoji.trim() : "",
+      category: category ? category.trim() : "Main",
+      description: description ? description.trim() : "",
+      restaurant: req.restaurantId,
+    });
+
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET all menu items (with restaurant info) - for customer app
 app.get("/api/menu/items", async (req, res) => {
   try {
@@ -649,6 +676,7 @@ app.post("/api/orders", authenticateJwt, requireRole("customer"), async (req, re
         email: customer.email,
         address: customer.address,
       },
+      customerId: customer._id,
       restaurant: restaurantId,
       items: items,
       totalPrice: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -660,6 +688,19 @@ app.post("/api/orders", authenticateJwt, requireRole("customer"), async (req, re
 
     io.emit("order:new", populatedOrder);
     res.status(201).json(populatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET order history for the authenticated customer
+app.get("/api/orders/mine", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const orders = await Order.find({ customerId: req.auth.sub })
+      .populate("restaurant")
+      .populate("items.menuItem")
+      .sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
