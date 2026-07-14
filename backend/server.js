@@ -161,20 +161,27 @@ app.post("/api/auth/customer-login", async (req, res) => {
 
 app.post("/api/auth/rider-login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // App sends phone; also accept email for backwards compatibility
+    const { phone, email, password } = req.body;
+    const identifier = phone || email;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password required" });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: "Phone and password required" });
     }
 
-    const rider = await Rider.findOne({ email: email.trim().toLowerCase() });
+    // Look up by phone first, then fall back to email
+    const rider = await Rider.findOne(
+      phone
+        ? { phone: identifier.trim() }
+        : { email: identifier.trim().toLowerCase() }
+    );
     if (!rider || !rider.isActive) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid phone or password" });
     }
 
     const validPassword = await verifyPassword(rider, password);
     if (!validPassword) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid phone or password" });
     }
 
     const token = signAuthToken({
@@ -187,7 +194,47 @@ app.post("/api/auth/rider-login", async (req, res) => {
     res.json({
       success: true,
       token,
+      rider: { id: rider._id, name: rider.name, phone: rider.phone, email: rider.email },
       user: publicUser({ ...rider.toObject(), role: "rider" }),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST rider signup — phone-based (used by the Expo rider app)
+app.post("/api/auth/rider-signup", async (req, res) => {
+  try {
+    const { name, phone, password } = req.body;
+
+    if (!name || !name.trim() || !phone || !phone.trim() || !password) {
+      return res.status(400).json({ error: "name, phone and password are required" });
+    }
+
+    const existing = await Rider.findOne({ phone: phone.trim() });
+    if (existing) {
+      return res.status(409).json({ error: "An account already exists with that phone number" });
+    }
+
+    const rider = await Rider.create({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: `rider_${Date.now()}@foodexpress.local`,
+      passwordHash: await bcrypt.hash(password, 10),
+      isActive: true,
+    });
+
+    const token = signAuthToken({
+      sub: rider._id.toString(),
+      role: "rider",
+      email: rider.email,
+      name: rider.name,
+    });
+
+    res.status(201).json({
+      success: true,
+      token,
+      rider: { id: rider._id, name: rider.name, phone: rider.phone, email: rider.email },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
