@@ -12,6 +12,7 @@ const Order = require("./models/Order");
 const RestaurantUser = require("./models/RestaurantUser");
 const Customer = require("./models/Customer");
 const Rider = require("./models/Rider");
+const ScheduledOrder = require("./models/ScheduledOrder");
 
 const app = express();
 app.use(cors());
@@ -839,6 +840,87 @@ app.post("/api/orders", authenticateJwt, requireRole("customer"), async (req, re
   }
 });
 
+// ---------- Scheduled Orders ("Order Ahead") ----------
+// A ScheduledOrder is just an intent - the real Order isn't created until
+// processDueScheduledOrders() (below) finds it due, so nothing here touches
+// the normal order/restaurant-dashboard/rider flows.
+
+const MIN_SCHEDULE_LEAD_MS = 60 * 1000;
+
+// POST schedule an order for a future time
+app.post("/api/scheduled-orders", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const { restaurantId, items, scheduledFor } = req.body;
+
+    if (!restaurantId) {
+      return res.status(400).json({ error: "restaurantId is required" });
+    }
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: "items array is required" });
+    }
+
+    const scheduledDate = new Date(scheduledFor);
+    if (Number.isNaN(scheduledDate.getTime())) {
+      return res.status(400).json({ error: "scheduledFor must be a valid date" });
+    }
+    if (scheduledDate.getTime() < Date.now() + MIN_SCHEDULE_LEAD_MS) {
+      return res.status(400).json({ error: "scheduledFor must be at least a minute in the future" });
+    }
+
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    const scheduled = await ScheduledOrder.create({
+      customerId: req.auth.sub,
+      restaurant: restaurantId,
+      items,
+      scheduledFor: scheduledDate,
+      status: "pending",
+    });
+
+    const populated = await scheduled.populate(["restaurant", "items.menuItem"]);
+    res.status(201).json(populated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET the authenticated customer's upcoming scheduled orders
+app.get("/api/scheduled-orders/mine", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const scheduled = await ScheduledOrder.find({ customerId: req.auth.sub, status: "pending" })
+      .populate("restaurant")
+      .populate("items.menuItem")
+      .sort({ scheduledFor: 1 });
+    res.json(scheduled);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE cancel a scheduled order before it fires
+app.delete("/api/scheduled-orders/:id", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const scheduled = await ScheduledOrder.findById(req.params.id);
+    if (!scheduled) {
+      return res.status(404).json({ error: "Scheduled order not found" });
+    }
+    if (scheduled.customerId.toString() !== req.auth.sub) {
+      return res.status(403).json({ error: "This scheduled order does not belong to you" });
+    }
+    if (scheduled.status !== "pending") {
+      return res.status(409).json({ error: "This scheduled order can no longer be cancelled" });
+    }
+
+    await ScheduledOrder.deleteOne({ _id: scheduled._id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET order history for the authenticated customer
 app.get("/api/orders/mine", authenticateJwt, requireRole("customer"), async (req, res) => {
   try {
@@ -1056,6 +1138,78 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 });
+
+// Turns due ScheduledOrders into real Orders, exactly like POST /api/orders
+// would. Runs on an interval rather than a per-order timer so it survives
+// server restarts - anything due gets picked up on the next tick.
+const SCHEDULED_ORDER_CHECK_INTERVAL_MS = 30 * 1000;
+
+async function processDueScheduledOrders() {
+  try {
+    const due = await ScheduledOrder.find({
+      status: "pending",
+      scheduledFor: { $lte: new Date() },
+    });
+
+    for (const scheduled of due) {
+      try {
+        const [customer, restaurant] = await Promise.all([
+          Customer.findById(scheduled.customerId),
+          Restaurant.findById(scheduled.restaurant),
+        ]);
+
+        if (!customer) {
+          scheduled.status = "failed";
+          scheduled.failureReason = "Customer account no longer exists";
+          await scheduled.save();
+          continue;
+        }
+        if (!restaurant) {
+          scheduled.status = "failed";
+          scheduled.failureReason = "Restaurant no longer exists";
+          await scheduled.save();
+          continue;
+        }
+        if (!restaurant.isOpen) {
+          scheduled.status = "failed";
+          scheduled.failureReason = "Restaurant is closed";
+          await scheduled.save();
+          continue;
+        }
+
+        const order = new Order({
+          customer: {
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            address: customer.address,
+          },
+          customerId: customer._id,
+          restaurant: restaurant._id,
+          items: scheduled.items,
+          totalPrice: scheduled.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+          status: "pending",
+        });
+
+        await order.save();
+        const populatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+        io.emit("order:new", populatedOrder);
+
+        scheduled.status = "placed";
+        scheduled.placedOrderId = order._id;
+        await scheduled.save();
+      } catch (innerError) {
+        scheduled.status = "failed";
+        scheduled.failureReason = innerError.message;
+        await scheduled.save().catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.error("Error processing scheduled orders:", error.message);
+  }
+}
+
+setInterval(processDueScheduledOrders, SCHEDULED_ORDER_CHECK_INTERVAL_MS);
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
