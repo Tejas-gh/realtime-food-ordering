@@ -846,6 +846,7 @@ app.post("/api/orders", authenticateJwt, requireRole("customer"), async (req, re
 // the normal order/restaurant-dashboard/rider flows.
 
 const MIN_SCHEDULE_LEAD_MS = 60 * 1000;
+const MAX_SCHEDULE_LEAD_MS = 3 * 60 * 60 * 1000;
 
 // POST schedule an order for a future time
 app.post("/api/scheduled-orders", authenticateJwt, requireRole("customer"), async (req, res) => {
@@ -865,6 +866,9 @@ app.post("/api/scheduled-orders", authenticateJwt, requireRole("customer"), asyn
     }
     if (scheduledDate.getTime() < Date.now() + MIN_SCHEDULE_LEAD_MS) {
       return res.status(400).json({ error: "scheduledFor must be at least a minute in the future" });
+    }
+    if (scheduledDate.getTime() > Date.now() + MAX_SCHEDULE_LEAD_MS) {
+      return res.status(400).json({ error: "scheduledFor can be at most 3 hours in the future" });
     }
 
     const restaurant = await Restaurant.findById(restaurantId);
