@@ -807,6 +807,14 @@ app.post("/api/orders", authenticateJwt, requireRole("customer"), async (req, re
       return res.status(404).json({ error: "Customer not found" });
     }
 
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+    if (!restaurant.isOpen) {
+      return res.status(409).json({ error: "This restaurant is currently closed" });
+    }
+
     const order = new Order({
       customer: {
         name: customer.name,
@@ -865,6 +873,37 @@ app.patch("/api/orders/:id/cancel", authenticateJwt, requireRole("customer"), as
     const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
 
     io.emit("order:updated", updatedOrder);
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH rate a delivered order (1-5) — once only
+app.patch("/api/orders/:id/rate", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const { rating } = req.body;
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "rating must be an integer between 1 and 5" });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    if (!order.customerId || order.customerId.toString() !== req.auth.sub) {
+      return res.status(403).json({ error: "This order does not belong to you" });
+    }
+    if (order.status !== "delivered") {
+      return res.status(409).json({ error: "You can only rate a delivered order" });
+    }
+    if (order.rating) {
+      return res.status(409).json({ error: "This order has already been rated" });
+    }
+
+    order.rating = rating;
+    await order.save();
+    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
     res.json(updatedOrder);
   } catch (error) {
     res.status(500).json({ error: error.message });

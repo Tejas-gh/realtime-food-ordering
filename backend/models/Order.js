@@ -43,6 +43,11 @@ const OrderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Rider",
     },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
   },
   { timestamps: true }
 );
