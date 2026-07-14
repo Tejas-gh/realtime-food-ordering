@@ -21,6 +21,12 @@ const CustomerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    favoriteRestaurants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Restaurant",
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -477,6 +477,60 @@ app.get("/api/restaurants/:id", async (req, res) => {
   }
 });
 
+// ---------- Customer Endpoints ----------
+
+// GET the authenticated customer's favorite restaurants
+app.get("/api/customers/favorites", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.auth.sub).populate("favoriteRestaurants");
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+    res.json(customer.favoriteRestaurants);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST add a restaurant to the authenticated customer's favorites
+app.post("/api/customers/favorites/:restaurantId", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.auth.sub);
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+    const { restaurantId } = req.params;
+    const alreadyFavorited = customer.favoriteRestaurants.some(
+      (id) => id.toString() === restaurantId
+    );
+    if (!alreadyFavorited) {
+      customer.favoriteRestaurants.push(restaurantId);
+      await customer.save();
+    }
+    res.json({ success: true, favoriteRestaurantIds: customer.favoriteRestaurants });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE remove a restaurant from the authenticated customer's favorites
+app.delete("/api/customers/favorites/:restaurantId", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.auth.sub);
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+    const { restaurantId } = req.params;
+    customer.favoriteRestaurants = customer.favoriteRestaurants.filter(
+      (id) => id.toString() !== restaurantId
+    );
+    await customer.save();
+    res.json({ success: true, favoriteRestaurantIds: customer.favoriteRestaurants });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ---------- Menu Items Endpoints ----------
 
 // GET menu items for authenticated restaurant staff
@@ -701,6 +755,33 @@ app.get("/api/orders/mine", authenticateJwt, requireRole("customer"), async (req
       .populate("items.menuItem")
       .sort({ createdAt: -1 });
     res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH cancel an order — customer can only cancel before the kitchen has it ready
+app.patch("/api/orders/:id/cancel", authenticateJwt, requireRole("customer"), async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    if (!order.customerId || order.customerId.toString() !== req.auth.sub) {
+      return res.status(403).json({ error: "This order does not belong to you" });
+    }
+
+    const cancellableStatuses = ["pending", "confirmed", "preparing"];
+    if (!cancellableStatuses.includes(order.status)) {
+      return res.status(409).json({ error: "This order can no longer be cancelled" });
+    }
+
+    order.status = "cancelled";
+    await order.save();
+    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+
+    io.emit("order:updated", updatedOrder);
+    res.json(updatedOrder);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
