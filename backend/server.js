@@ -84,6 +84,18 @@ const publicUser = (user) => ({
   restaurant: user.restaurant,
 });
 
+const riderPublic = (rider) => ({
+  id: rider._id,
+  name: rider.name,
+  phone: rider.phone,
+  email: rider.email,
+  isOnline: rider.isOnline,
+});
+
+// Flat payout per completed delivery. No real payments/pricing model exists
+// yet, so this is a placeholder rate for the earnings summary.
+const EARNINGS_PER_DELIVERY = 30;
+
 app.post("/api/auth/customer-signup", async (req, res) => {
   try {
     const { name, email, phone, address, password } = req.body;
@@ -194,7 +206,7 @@ app.post("/api/auth/rider-login", async (req, res) => {
     res.json({
       success: true,
       token,
-      rider: { id: rider._id, name: rider.name, phone: rider.phone, email: rider.email },
+      rider: riderPublic(rider),
       user: publicUser({ ...rider.toObject(), role: "rider" }),
     });
   } catch (error) {
@@ -234,7 +246,79 @@ app.post("/api/auth/rider-signup", async (req, res) => {
     res.status(201).json({
       success: true,
       token,
-      rider: { id: rider._id, name: rider.name, phone: rider.phone, email: rider.email },
+      rider: riderPublic(rider),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH rider's own profile (name/phone)
+app.patch("/api/riders/me", authenticateJwt, requireRole("rider"), async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ error: "phone is required" });
+    }
+
+    const existing = await Rider.findOne({ phone: phone.trim(), _id: { $ne: req.auth.sub } });
+    if (existing) {
+      return res.status(409).json({ error: "An account already exists with that phone number" });
+    }
+
+    const rider = await Rider.findByIdAndUpdate(
+      req.auth.sub,
+      { name: name.trim(), phone: phone.trim() },
+      { new: true }
+    );
+    if (!rider) {
+      return res.status(404).json({ error: "Rider not found" });
+    }
+
+    res.json({ success: true, rider: riderPublic(rider) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH rider's own online/offline status
+app.patch("/api/riders/me/online", authenticateJwt, requireRole("rider"), async (req, res) => {
+  try {
+    if (typeof req.body?.isOnline !== "boolean") {
+      return res.status(400).json({ error: "isOnline boolean is required" });
+    }
+
+    const rider = await Rider.findByIdAndUpdate(
+      req.auth.sub,
+      { isOnline: req.body.isOnline },
+      { new: true }
+    );
+    if (!rider) {
+      return res.status(404).json({ error: "Rider not found" });
+    }
+
+    res.json({ success: true, rider: riderPublic(rider) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET rider's own delivery stats (count + placeholder flat-rate earnings)
+app.get("/api/riders/me/stats", authenticateJwt, requireRole("rider"), async (req, res) => {
+  try {
+    const totalDeliveries = await Order.countDocuments({
+      rider: req.auth.sub,
+      status: "delivered",
+    });
+
+    res.json({
+      totalDeliveries,
+      totalEarnings: totalDeliveries * EARNINGS_PER_DELIVERY,
+      earningsPerDelivery: EARNINGS_PER_DELIVERY,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -816,6 +900,11 @@ app.get("/api/orders/restaurant", authenticateRestaurantUser, async (req, res) =
 // GET available orders for rider — only 'ready' orders (food packed, waiting for pickup)
 app.get("/api/orders/available", authenticateJwt, requireRole("rider"), async (req, res) => {
   try {
+    const rider = await Rider.findById(req.auth.sub);
+    if (!rider || !rider.isOnline) {
+      return res.json([]);
+    }
+
     const orders = await Order.find({ status: "ready" })
       .populate("restaurant")
       .populate("items.menuItem")
