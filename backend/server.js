@@ -759,8 +759,13 @@ app.post("/api/orders/:id/accept", authenticateJwt, requireRole("rider"), async 
     }
 
     order.status = "on-the-way";
+    order.rider = req.auth.sub;
     await order.save();
-    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+    const updatedOrder = await order.populate([
+      "restaurant",
+      "items.menuItem",
+      { path: "rider", select: "-passwordHash" },
+    ]);
 
     io.emit("order:updated", updatedOrder);
     res.json(updatedOrder);
@@ -784,9 +789,17 @@ app.patch("/api/orders/:id/status", authenticateJwt, requireRole("rider"), async
       return res.status(404).json({ error: "Order not found" });
     }
 
+    if (order.rider && order.rider.toString() !== req.auth.sub) {
+      return res.status(403).json({ error: "This order belongs to a different rider" });
+    }
+
     order.status = status;
     await order.save();
-    const updatedOrder = await order.populate(["restaurant", "items.menuItem"]);
+    const updatedOrder = await order.populate([
+      "restaurant",
+      "items.menuItem",
+      { path: "rider", select: "-passwordHash" },
+    ]);
 
     io.emit("order:updated", updatedOrder);
     res.json(updatedOrder);
