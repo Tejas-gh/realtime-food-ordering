@@ -3,212 +3,991 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Restaurant Dashboard - Login</title>
+<title>FoodExpress — Restaurant Portal</title>
+<meta name="description" content="Login or register your restaurant on FoodExpress to start receiving orders." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #FAF7F2;
-    --surface: #FFFFFF;
-    --ink: #2B2420;
-    --muted: #8A7F73;
-    --accent: #C4501F;
-    --accent-soft: #F3E2D5;
-    --line: #EAE2D8;
-    --live: #2F7A4F;
-    --live-soft: #E3F0E8;
-    --error: #D32F2F;
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface-2: #1e1e24;
+    --surface-3: #26262e;
+    --ink: #f0eee8;
+    --ink-2: #a09890;
+    --ink-3: #6a6260;
+    --accent: #ff6b35;
+    --accent-2: #ff9a6c;
+    --accent-glow: rgba(255, 107, 53, 0.18);
+    --accent-glow-strong: rgba(255, 107, 53, 0.35);
+    --green: #3ecf8e;
+    --green-soft: rgba(62, 207, 142, 0.12);
+    --red: #f87171;
+    --red-soft: rgba(248, 113, 113, 0.12);
+    --line: rgba(255, 255, 255, 0.08);
+    --radius: 12px;
   }
-  * { box-sizing: border-box; }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    margin: 0;
     background: var(--bg);
     color: var(--ink);
-    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* ════════════════════════════════
+     LEFT HERO
+  ════════════════════════════════ */
+  .hero {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    background: linear-gradient(145deg, #1a0e06 0%, #0d0d0f 40%, #0a1a12 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 48px 52px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -120px; left: -80px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,107,53,0.22) 0%, transparent 65%);
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -100px; right: -60px;
+    width: 380px; height: 380px;
+    background: radial-gradient(circle, rgba(62,207,142,0.14) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 20px var(--accent-glow-strong);
+  }
+
+  /* hero body — separate panels that fade in/out */
+  .hero-body { position: relative; z-index: 1; }
+
+  .hero-content {
+    position: absolute;
+    top: 0; left: 0;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  .hero-content.hidden {
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+  }
+
+  .hero-content.visible {
+    opacity: 1;
+    transform: translateY(0);
+    position: relative;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--green-soft);
+    border: 1px solid rgba(62,207,142,0.25);
+    color: var(--green);
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    letter-spacing: 0.3px;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--ink) 30%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--ink-2);
+    line-height: 1.65;
+    max-width: 360px;
+    margin-bottom: 36px;
+  }
+
+  .hero-features {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .hero-feature {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+
+  .hero-feature-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 3px;
+  }
+
+  .hero-footer {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  /* ════════════════════════════════
+     RIGHT FORM PANEL
+  ════════════════════════════════ */
+  .form-panel {
+    overflow-y: auto;
+    padding: 48px 52px;
+    min-height: 100vh;
+  }
+
+  /* ── Tab toggle ── */
+  .tab-bar {
+    display: flex;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 36px;
+    position: relative;
+  }
+
+  .tab-indicator {
+    position: absolute;
+    top: 4px; bottom: 4px;
+    width: calc(50% - 4px);
+    background: linear-gradient(135deg, var(--accent), #e85d25);
+    border-radius: 8px;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 2px 12px rgba(255,107,53,0.3);
+    left: 4px;
+  }
+
+  .tab-indicator.right { transform: translateX(100%); }
+
+  .tab-btn {
+    flex: 1;
+    padding: 11px;
+    background: none;
+    border: none;
+    color: var(--ink-2);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+    border-radius: 8px;
+    transition: color 0.2s;
+    width: auto;
+    margin-top: 0;
+  }
+
+  .tab-btn.active { color: #fff; }
+  .tab-btn:not(.active):hover { color: var(--ink); }
+
+  /* ── Form sections ── */
+  .auth-panel {
+    display: none;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .auth-panel.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-header {
+    margin-bottom: 28px;
+  }
+
+  .panel-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    margin-bottom: 5px;
+  }
+
+  .panel-header p {
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+
+  /* ── Section labels inside signup ── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    margin-top: 26px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .section-label:first-of-type { margin-top: 0; }
+
+  /* ── Inputs ── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    margin-bottom: 6px;
+    letter-spacing: 0.2px;
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0.55;
+    line-height: 1;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 11px 14px 11px 38px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  input::placeholder { color: var(--ink-3); }
+  select { cursor: pointer; }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface-3);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  /* custom select arrow */
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-3);
+    pointer-events: none;
+    font-size: 11px;
+  }
+
+  /* password toggle button */
+  .pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-3);
+    font-size: 15px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    width: auto;
+    margin-top: 0;
+    transition: color 0.15s;
+  }
+
+  .pw-toggle:hover { color: var(--ink); }
+
+  /* password strength */
+  .pw-strength { margin-top: 6px; display: none; }
+  .pw-strength.show { display: block; }
+
+  .pw-bars { display: flex; gap: 4px; margin-bottom: 4px; }
+
+  .pw-bar {
+    flex: 1; height: 3px;
+    border-radius: 2px;
+    background: var(--surface-3);
+    transition: background 0.3s;
+  }
+
+  .pw-bar.weak   { background: var(--red); }
+  .pw-bar.fair   { background: #f59e0b; }
+  .pw-bar.strong { background: var(--green); }
+
+  .pw-label { font-size: 11px; color: var(--ink-3); }
+
+  /* ── Alerts ── */
+  .alert {
+    padding: 11px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 18px;
+    display: none;
+    align-items: flex-start;
+    gap: 9px;
+    animation: slideDown 0.2s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .alert.show { display: flex; }
+  .alert-error { background: var(--red-soft); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+  .alert-success { background: var(--green-soft); border: 1px solid rgba(62,207,142,0.25); color: var(--green); }
+
+  /* ── Submit button ── */
+  .btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent) 0%, #e85d25 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 22px;
+    letter-spacing: 0.2px;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 4px 20px rgba(255,107,53,0.3);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .btn-submit::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(255,107,53,0.45);
+  }
+
+  .btn-submit:active:not(:disabled) { transform: translateY(0); }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
+    gap: 8px;
   }
-  .login-container {
-    width: 100%;
-    max-width: 400px;
-    padding: 40px 24px;
+
+  .btn-spinner {
+    display: none;
+    width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
   }
-  .login-box {
-    background: var(--surface);
-    border-radius: 12px;
-    padding: 40px 28px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    border: 1px solid var(--line);
-  }
-  header {
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .terms {
+    font-size: 11.5px;
+    color: var(--ink-3);
     text-align: center;
-    margin-bottom: 32px;
+    margin-top: 14px;
+    line-height: 1.6;
   }
-  header h1 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-  header p {
-    margin: 8px 0 0;
-    color: var(--muted);
-    font-size: 13px;
-  }
-  .form-group {
-    margin-bottom: 20px;
-  }
-  label {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 6px;
-    color: var(--ink);
-  }
-  input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    font-size: 14px;
-    font-family: inherit;
-  }
-  input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
-  }
-  button {
-    width: 100%;
-    padding: 12px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 24px;
-  }
-  button:hover { opacity: 0.9; }
-  button:disabled {
-    background: var(--muted);
-    cursor: not-allowed;
-  }
-  .error {
-    background: #FFEBEE;
-    color: var(--error);
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 20px;
-    display: none;
-  }
-  .demo-credentials {
-    background: var(--live-soft);
-    border: 1px solid var(--live);
-    padding: 14px;
-    border-radius: 6px;
-    margin-top: 24px;
-    font-size: 12px;
-  }
-  .demo-credentials h3 {
-    margin: 0 0 10px;
-    color: var(--live);
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .demo-credentials p {
-    margin: 0 0 4px;
-    color: var(--ink);
-    font-family: monospace;
-    font-size: 11px;
-  }
-  .loading {
-    display: none;
+
+  .terms a { color: var(--ink-2); text-decoration: underline; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; }
+    .hero { display: none; }
+    .form-panel { padding: 32px 20px; }
+    .form-row { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
 
-<div class="login-container">
-  <div class="login-box">
-    <header>
-      <h1>🍽️ Restaurant Dashboard</h1>
-      <p>Login to manage your menu</p>
-    </header>
+<!-- ════ LEFT HERO ════ -->
+<aside class="hero">
+  <a class="hero-logo" href="#">
+    <div class="hero-logo-icon">🍽️</div>
+    FoodExpress
+  </a>
 
-    <div class="error" id="error"></div>
-
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required />
+  <div class="hero-body">
+    <!-- Login hero content -->
+    <div class="hero-content visible" id="heroLogin">
+      <h1>Welcome back, Chef.</h1>
+      <p class="hero-sub">Log in to manage your orders, update your menu and track deliveries — all in one place.</p>
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-value">2,400+</div>
+          <div class="stat-label">Restaurants on platform</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">98%</div>
+          <div class="stat-label">On-time delivery rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">1.2M</div>
+          <div class="stat-label">Orders delivered</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">4.8★</div>
+          <div class="stat-label">Avg. restaurant rating</div>
+        </div>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required />
+    <!-- Signup hero content -->
+    <div class="hero-content hidden" id="heroSignup">
+      <div class="hero-badge">Now accepting new restaurants</div>
+      <h1>Grow your restaurant with us</h1>
+      <p class="hero-sub">Register your restaurant in under 2 minutes and start getting orders from thousands of hungry customers today.</p>
+      <div class="hero-features">
+        <div class="hero-feature">
+          <div class="hero-feature-icon">📊</div>
+          <span>Real-time dashboard to manage orders and menu</span>
+        </div>
+        <div class="hero-feature">
+          <div class="hero-feature-icon">🚴</div>
+          <span>Dedicated rider network for fast deliveries</span>
+        </div>
+        <div class="hero-feature">
+          <div class="hero-feature-icon">💰</div>
+          <span>Direct payouts with transparent commission</span>
+        </div>
+        <div class="hero-feature">
+          <div class="hero-feature-icon">📣</div>
+          <span>Marketing tools to reach more customers</span>
+        </div>
       </div>
-
-      <button type="submit" id="loginBtn">Login</button>
-    </form>
-
-    <div class="demo-credentials">
-      <h3>Demo Credentials</h3>
-      <p>manager@tastybites.com / password123</p>
-      <p>manager@spiceroute.com / password123</p>
-      <p>manager@pizzaplanet.com / password123</p>
-      <p>manager@dragonwok.com / password123</p>
-      <p>manager@burgerbarn.com / password123</p>
-      <p>manager@sweetooth.com / password123</p>
     </div>
   </div>
-</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <div class="hero-footer">© 2025 FoodExpress. All rights reserved.</div>
+</aside>
+
+<!-- ════ RIGHT FORM PANEL ════ -->
+<main class="form-panel" id="formPanel">
+
+  <!-- Tab switcher -->
+  <div class="tab-bar" role="tablist">
+    <div class="tab-indicator" id="tabIndicator"></div>
+    <button class="tab-btn active" id="tabLogin" role="tab" aria-selected="true" onclick="switchTab('login')">Login</button>
+    <button class="tab-btn" id="tabSignup" role="tab" aria-selected="false" onclick="switchTab('signup')">Register</button>
+  </div>
+
+  <!-- ── LOGIN PANEL ── -->
+  <div class="auth-panel active" id="panelLogin" role="tabpanel">
+    <div class="panel-header">
+      <h2>Login to your dashboard</h2>
+      <p>Enter your credentials to access your restaurant account.</p>
+    </div>
+
+    <div class="alert alert-error" id="loginError">
+      <span>⚠️</span><span id="loginErrorMsg"></span>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div class="form-group">
+        <label for="loginEmail">Email Address</label>
+        <div class="input-wrap">
+          <span class="input-icon">✉️</span>
+          <input type="email" id="loginEmail" placeholder="owner@myrestaurant.com" required autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password" />
+          <button type="button" class="pw-toggle" onclick="togglePw('loginPassword', this)" tabindex="-1" aria-label="Show password">👁️</button>
+        </div>
+      </div>
+
+      <button type="submit" id="loginBtn" class="btn-submit">
+        <div class="btn-content">
+          <div class="btn-spinner" id="loginSpinner"></div>
+          <span id="loginBtnText">Log in to Dashboard →</span>
+        </div>
+      </button>
+    </form>
+  </div>
+
+  <!-- ── SIGNUP PANEL ── -->
+  <div class="auth-panel" id="panelSignup" role="tabpanel">
+    <div class="panel-header">
+      <h2>Register your restaurant</h2>
+      <p>Create your account and get your restaurant live today.</p>
+    </div>
+
+    <div class="alert alert-error" id="signupError">
+      <span>⚠️</span><span id="signupErrorMsg"></span>
+    </div>
+    <div class="alert alert-success" id="signupSuccess">
+      <span>✅</span><span id="signupSuccessMsg"></span>
+    </div>
+
+    <form id="signupForm" novalidate>
+
+      <div class="section-label">Your Details</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="ownerName">Full Name *</label>
+          <div class="input-wrap">
+            <span class="input-icon">👤</span>
+            <input type="text" id="ownerName" placeholder="Tejas" required autocomplete="name" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ownerPhone">Phone Number</label>
+          <div class="input-wrap">
+            <span class="input-icon">📱</span>
+            <input type="tel" id="ownerPhone" placeholder="+91 98765 43210" autocomplete="tel" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="signupEmail">Email Address *</label>
+        <div class="input-wrap">
+          <span class="input-icon">✉️</span>
+          <input type="email" id="signupEmail" placeholder="tejas@myrestaurant.com" required autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="signupPassword">Password *</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="signupPassword" placeholder="Min. 6 characters" required autocomplete="new-password" oninput="updateStrength(this.value)" />
+            <button type="button" class="pw-toggle" onclick="togglePw('signupPassword', this)" tabindex="-1" aria-label="Show password">👁️</button>
+          </div>
+          <div class="pw-strength" id="pwStrength">
+            <div class="pw-bars">
+              <div class="pw-bar" id="bar1"></div>
+              <div class="pw-bar" id="bar2"></div>
+              <div class="pw-bar" id="bar3"></div>
+              <div class="pw-bar" id="bar4"></div>
+            </div>
+            <div class="pw-label" id="pwLabel">Weak</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password *</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="confirmPassword" placeholder="Re-enter password" required autocomplete="new-password" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Restaurant Details</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="restaurantName">Restaurant Name *</label>
+          <div class="input-wrap">
+            <span class="input-icon">🏪</span>
+            <input type="text" id="restaurantName" placeholder="Spice Garden" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cuisine">Cuisine Type</label>
+          <div class="input-wrap select-wrap">
+            <span class="input-icon">🍴</span>
+            <select id="cuisine">
+              <option value="">Select cuisine</option>
+              <option value="North Indian">North Indian</option>
+              <option value="South Indian">South Indian</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Italian">Italian</option>
+              <option value="Pizza">Pizza</option>
+              <option value="Burgers">Burgers</option>
+              <option value="Biryani">Biryani</option>
+              <option value="Street Food">Street Food</option>
+              <option value="Desserts">Desserts</option>
+              <option value="Seafood">Seafood</option>
+              <option value="Continental">Continental</option>
+              <option value="Multi-Cuisine">Multi-Cuisine</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="address">Restaurant Address</label>
+        <div class="input-wrap">
+          <span class="input-icon">📍</span>
+          <input type="text" id="address" placeholder="123 MG Road, Bangalore, Karnataka 560001" autocomplete="street-address" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="restaurantPhone">Restaurant Phone</label>
+          <div class="input-wrap">
+            <span class="input-icon">📞</span>
+            <input type="tel" id="restaurantPhone" placeholder="080-12345678" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="deliveryTime">Avg. Delivery Time</label>
+          <div class="input-wrap select-wrap">
+            <span class="input-icon">⏱️</span>
+            <select id="deliveryTime">
+              <option value="">Select time</option>
+              <option value="15-20 min">15–20 min</option>
+              <option value="20-30 min">20–30 min</option>
+              <option value="30-45 min">30–45 min</option>
+              <option value="45-60 min">45–60 min</option>
+              <option value="60+ min">60+ min</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" id="signupBtn" class="btn-submit">
+        <div class="btn-content">
+          <div class="btn-spinner" id="signupSpinner"></div>
+          <span id="signupBtnText">Create Restaurant Account →</span>
+        </div>
+      </button>
+
+      <p class="terms">
+        By creating an account you agree to our
+        <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      </p>
+    </form>
+  </div>
+
+</main>
+
 <script>
   const API_BASE = "http://localhost:4000";
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    const errorEl = document.getElementById("error");
-    const loginBtn = document.getElementById("loginBtn");
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
+  // ── Redirect if already logged in ──
+  if (localStorage.getItem("restaurantToken")) {
+    window.location.href = "restaurant-dashboard.html";
+  }
 
-    errorEl.textContent = "";
-    loginBtn.disabled = true;
-    loginBtn.textContent = "Logging in...";
+  // ── Tab switching ──
+  const tabIndicator = document.getElementById("tabIndicator");
+
+  function switchTab(tab) {
+    const isLogin = tab === "login";
+
+    document.getElementById("tabLogin").classList.toggle("active", isLogin);
+    document.getElementById("tabSignup").classList.toggle("active", !isLogin);
+    document.getElementById("tabLogin").setAttribute("aria-selected", isLogin);
+    document.getElementById("tabSignup").setAttribute("aria-selected", !isLogin);
+
+    document.getElementById("panelLogin").classList.toggle("active", isLogin);
+    document.getElementById("panelSignup").classList.toggle("active", !isLogin);
+
+    tabIndicator.classList.toggle("right", !isLogin);
+
+    // Swap hero content
+    document.getElementById("heroLogin").classList.toggle("visible", isLogin);
+    document.getElementById("heroLogin").classList.toggle("hidden", !isLogin);
+    document.getElementById("heroSignup").classList.toggle("visible", !isLogin);
+    document.getElementById("heroSignup").classList.toggle("hidden", isLogin);
+
+    // Clear alerts when switching
+    ["loginError", "signupError", "signupSuccess"].forEach(id => {
+      document.getElementById(id).classList.remove("show");
+    });
+
+    // Scroll form panel to top
+    document.getElementById("formPanel").scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Check URL hash on load
+  if (window.location.hash === "#register") switchTab("signup");
+
+  // ── Password visibility ──
+  function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isText = input.type === "text";
+    input.type = isText ? "password" : "text";
+    btn.textContent = isText ? "👁️" : "🙈";
+  }
+
+  // ── Password strength ──
+  const bars = ["bar1","bar2","bar3","bar4"].map(id => document.getElementById(id));
+  const pwStrength = document.getElementById("pwStrength");
+  const pwLabel    = document.getElementById("pwLabel");
+
+  function calcStrength(pw) {
+    let s = 0;
+    if (pw.length >= 6)  s++;
+    if (pw.length >= 10) s++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
+
+  function updateStrength(val) {
+    if (!val) { pwStrength.classList.remove("show"); return; }
+    pwStrength.classList.add("show");
+    const score = calcStrength(val);
+    const cls   = score <= 1 ? "weak" : score <= 2 ? "fair" : "strong";
+    const lbl   = ["", "Weak", "Fair", "Strong", "Very Strong"];
+    bars.forEach((b, i) => {
+      b.className = "pw-bar";
+      if (i < score) b.classList.add(cls);
+    });
+    pwLabel.textContent  = lbl[score] || "Weak";
+    pwLabel.style.color  = score <= 1 ? "var(--red)" : score <= 2 ? "#f59e0b" : "var(--green)";
+  }
+
+  // ── Alert helpers ──
+  function showAlert(id, msg) {
+    const el = document.getElementById(id);
+    document.getElementById(id + "Msg").textContent = msg;
+    el.classList.add("show");
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function hideAlert(id) {
+    document.getElementById(id).classList.remove("show");
+  }
+
+  function setLoading(prefix, loading, defaultText) {
+    document.getElementById(prefix + "Btn").disabled = loading;
+    document.getElementById(prefix + "Spinner").style.display = loading ? "inline-block" : "none";
+    document.getElementById(prefix + "BtnText").textContent = loading
+      ? (prefix === "login" ? "Logging in…" : "Creating account…")
+      : defaultText;
+  }
+
+  // ── LOGIN ──
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlert("loginError");
+
+    const email    = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    if (!email || !password) return showAlert("loginError", "Please enter your email and password.");
+
+    setLoading("login", true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/restaurant-login`, {
+      const res  = await fetch(`${API_BASE}/api/auth/restaurant-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed. Please try again.");
 
-      if (!res.ok) {
-        throw new Error(data.error || "Login failed");
-      }
-
-      // Save token and redirect to dashboard
       localStorage.setItem("restaurantToken", data.token);
-      localStorage.setItem("restaurantUser", JSON.stringify(data.user));
+      localStorage.setItem("restaurantUser",  JSON.stringify(data.user));
       window.location.href = "restaurant-dashboard.html";
     } catch (err) {
-      errorEl.textContent = err.message;
-      errorEl.style.display = "block";
-      loginBtn.disabled = false;
-      loginBtn.textContent = "Login";
+      showAlert("loginError", err.message);
+      setLoading("login", false, "Log in to Dashboard →");
     }
-  }
+  });
 
-  // If already logged in, redirect to dashboard
-  if (localStorage.getItem("restaurantToken")) {
-    window.location.href = "restaurant-dashboard.html";
-  }
+  // ── SIGNUP ──
+  document.getElementById("signupForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlert("signupError");
+    hideAlert("signupSuccess");
+
+    const ownerName       = document.getElementById("ownerName").value.trim();
+    const ownerPhone      = document.getElementById("ownerPhone").value.trim();
+    const email           = document.getElementById("signupEmail").value.trim();
+    const password        = document.getElementById("signupPassword").value;
+    const confirmPw       = document.getElementById("confirmPassword").value;
+    const restaurantName  = document.getElementById("restaurantName").value.trim();
+    const cuisine         = document.getElementById("cuisine").value;
+    const address         = document.getElementById("address").value.trim();
+    const restaurantPhone = document.getElementById("restaurantPhone").value.trim();
+    const deliveryTime    = document.getElementById("deliveryTime").value;
+
+    // Validation
+    if (!ownerName) return showAlert("signupError", "Please enter your full name.");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showAlert("signupError", "Please enter a valid email address.");
+    if (!password || password.length < 6) return showAlert("signupError", "Password must be at least 6 characters.");
+    if (password !== confirmPw) return showAlert("signupError", "Passwords do not match.");
+    if (!restaurantName) return showAlert("signupError", "Please enter your restaurant name.");
+
+    setLoading("signup", true, "");
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/auth/restaurant-owner-signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerName,
+          email,
+          password,
+          phone:           ownerPhone      || undefined,
+          restaurantName,
+          cuisine:         cuisine         || undefined,
+          address:         address         || undefined,
+          restaurantPhone: restaurantPhone || undefined,
+          deliveryTime:    deliveryTime    || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Signup failed. Please try again.");
+
+      localStorage.setItem("restaurantToken", data.token);
+      localStorage.setItem("restaurantUser",  JSON.stringify(data.user));
+
+      showAlert("signupSuccess", `🎉 Welcome, ${data.user.name}! "${data.user.restaurant.name}" is live. Redirecting…`);
+      setTimeout(() => { window.location.href = "restaurant-dashboard.html"; }, 1800);
+    } catch (err) {
+      showAlert("signupError", err.message);
+      setLoading("signup", false, "Create Restaurant Account →");
+    }
+  });
 </script>
 
 </body>

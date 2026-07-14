@@ -35,7 +35,7 @@ const OrderSchema = new mongoose.Schema(
     totalPrice: Number,
     status: {
       type: String,
-      enum: ["pending", "confirmed", "preparing", "on-the-way", "delivered", "cancelled"],
+      enum: ["pending", "confirmed", "preparing", "ready", "on-the-way", "delivered", "cancelled"],
       default: "pending",
     },
     deliveryTime: Date,

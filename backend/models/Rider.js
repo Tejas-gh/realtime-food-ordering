@@ -2,16 +2,17 @@ const mongoose = require("mongoose");
 
 const RiderSchema = new mongoose.Schema(
   {
-    phone: {
+    name: {
+      type: String,
+      required: true,
+    },
+    email: {
       type: String,
       required: true,
       unique: true,
     },
-    password: {
-      type: String,
-      required: true,
-    },
-    name: {
+    phone: String,
+    passwordHash: {
       type: String,
       required: true,
     },

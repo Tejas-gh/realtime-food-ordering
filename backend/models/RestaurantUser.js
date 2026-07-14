@@ -7,7 +7,7 @@ const RestaurantUserSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    password: {
+    passwordHash: {
       type: String,
       required: true,
     },
@@ -17,9 +17,10 @@ const RestaurantUserSchema = new mongoose.Schema(
       ref: "Restaurant",
       required: true,
     },
+    phone: String,
     role: {
       type: String,
-      enum: ["manager", "staff"],
+      enum: ["owner", "manager", "staff"],
       default: "staff",
     },
     isActive: {
