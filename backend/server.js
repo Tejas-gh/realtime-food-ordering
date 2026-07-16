@@ -418,6 +418,26 @@ app.post("/api/auth/restaurant-owner-signup", async (req, res) => {
   }
 });
 
+// PATCH toggle the authenticated restaurant's open/closed status
+app.patch("/api/restaurants/me/open", authenticateRestaurantUser, async (req, res) => {
+  try {
+    if (typeof req.body?.isOpen !== "boolean") {
+      return res.status(400).json({ error: "isOpen boolean is required" });
+    }
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.restaurantId,
+      { isOpen: req.body.isOpen },
+      { new: true }
+    );
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+    res.json(restaurant);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Keep legacy staff signup endpoint (but it's no longer linked from frontend)
 app.post("/api/auth/restaurant-signup", async (req, res) => {
   try {
@@ -650,6 +670,63 @@ app.post("/api/menu/items", authenticateRestaurantUser, async (req, res) => {
     });
 
     res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH edit a menu item owned by the authenticated restaurant
+app.patch("/api/menu/items/:id", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+    if (item.restaurant.toString() !== req.restaurantId) {
+      return res.status(403).json({ error: "This item does not belong to your restaurant" });
+    }
+
+    const { name, price, emoji, category, description, isAvailable } = req.body;
+    if (name !== undefined) {
+      if (!name.trim()) {
+        return res.status(400).json({ error: "name cannot be empty" });
+      }
+      item.name = name.trim();
+    }
+    if (price !== undefined) {
+      if (Number.isNaN(Number(price)) || Number(price) < 0) {
+        return res.status(400).json({ error: "a valid price is required" });
+      }
+      item.price = Number(price);
+    }
+    if (emoji !== undefined) item.emoji = emoji.trim();
+    if (category !== undefined) item.category = category.trim() || "Main";
+    if (description !== undefined) item.description = description.trim();
+    if (isAvailable !== undefined) item.isAvailable = !!isAvailable;
+
+    await item.save();
+    const updatedItem = await item.populate("restaurant");
+    io.emit("menu:updated", { type: "item", item: updatedItem });
+
+    res.json(updatedItem);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE a menu item owned by the authenticated restaurant
+app.delete("/api/menu/items/:id", authenticateRestaurantUser, async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+    if (item.restaurant.toString() !== req.restaurantId) {
+      return res.status(403).json({ error: "This item does not belong to your restaurant" });
+    }
+
+    await item.deleteOne();
+    res.status(204).end();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1107,7 +1184,7 @@ app.patch("/api/orders/:id/status", authenticateJwt, requireRole("rider"), async
 app.patch("/api/orders/:id/restaurant-status", authenticateRestaurantUser, async (req, res) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ["preparing", "ready"];
+    const allowedStatuses = ["preparing", "ready", "cancelled"];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ error: `Restaurant can only set status to: ${allowedStatuses.join(", ")}` });
