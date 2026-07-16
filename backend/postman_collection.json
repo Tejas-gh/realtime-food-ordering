@@ -1,0 +1,624 @@
+{
+  "info": {
+    "name": "FoodExpress API",
+    "description": "Full API collection for the realtime-food-ordering backend (customer, rider, and restaurant flows, plus Order Ahead scheduling). Auth uses JWT bearer tokens - login/signup requests auto-save their token into the matching collection variable (customerToken / riderToken / restaurantToken) via a test script, so you can just run requests top to bottom within a folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "customerToken", "value": "" },
+    { "key": "riderToken", "value": "" },
+    { "key": "restaurantToken", "value": "" },
+    { "key": "restaurantId", "value": "" },
+    { "key": "menuItemId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "scheduledOrderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Customer",
+      "item": [
+        {
+          "name": "Customer Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('customerToken', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Customer\",\n  \"email\": \"jane.customer@example.com\",\n  \"phone\": \"9999900001\",\n  \"address\": \"12 MG Road, Bengaluru\",\n  \"password\": \"pass1234\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/customer-signup"
+          }
+        },
+        {
+          "name": "Customer Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('customerToken', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane.customer@example.com\",\n  \"password\": \"pass1234\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/customer-login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Rider",
+      "item": [
+        {
+          "name": "Rider Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('riderToken', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Rider\",\n  \"phone\": \"8888800001\",\n  \"password\": \"pass1234\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/rider-signup"
+          }
+        },
+        {
+          "name": "Rider Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('riderToken', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"8888800001\",\n  \"password\": \"pass1234\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/rider-login"
+          }
+        },
+        {
+          "name": "Update My Rider Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Rider\",\n  \"phone\": \"8888800001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/riders/me"
+          }
+        },
+        {
+          "name": "Set My Online Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isOnline\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/riders/me/online"
+          }
+        },
+        {
+          "name": "Get My Delivery Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/riders/me/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Restaurant",
+      "item": [
+        {
+          "name": "Restaurant Owner Sign Up (creates restaurant + owner)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('restaurantToken', data.token);",
+                  "  if (data.user && data.user.restaurant) {",
+                  "    pm.collectionVariables.set('restaurantId', data.user.restaurant._id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerName\": \"Owner Name\",\n  \"email\": \"owner@example.com\",\n  \"password\": \"pass1234\",\n  \"phone\": \"7777700001\",\n  \"restaurantName\": \"New Test Restaurant\",\n  \"cuisine\": \"Multi-cuisine\",\n  \"address\": \"1 Food Street\",\n  \"restaurantPhone\": \"555-1234\",\n  \"deliveryTime\": \"25-30 min\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/restaurant-owner-signup"
+          }
+        },
+        {
+          "name": "Restaurant Staff Sign Up (legacy, needs existing restaurantId)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Name\",\n  \"email\": \"staff@example.com\",\n  \"password\": \"pass1234\",\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"role\": \"staff\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/restaurant-signup"
+          }
+        },
+        {
+          "name": "Restaurant Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('restaurantToken', data.token);",
+                  "  if (data.user && data.user.restaurant) {",
+                  "    pm.collectionVariables.set('restaurantId', data.user.restaurant._id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@tastybites.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/restaurant-login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restaurants & Catalog",
+      "item": [
+        {
+          "name": "List All Restaurants",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/restaurants"
+          }
+        },
+        {
+          "name": "Get Full Catalog (restaurants + menu items)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/catalog"
+          }
+        },
+        {
+          "name": "Get Single Restaurant + Menu",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/restaurants/{{restaurantId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Favorites",
+      "item": [
+        {
+          "name": "List My Favorite Restaurants",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/customers/favorites"
+          }
+        },
+        {
+          "name": "Add Favorite Restaurant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/customers/favorites/{{restaurantId}}"
+          }
+        },
+        {
+          "name": "Remove Favorite Restaurant",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/customers/favorites/{{restaurantId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu Items",
+      "item": [
+        {
+          "name": "Get My Restaurant's Menu (dashboard)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{restaurantToken}}" }],
+            "url": "{{baseUrl}}/api/menu/items/dashboard"
+          }
+        },
+        {
+          "name": "Create Menu Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('menuItemId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{restaurantToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Veg Biryani\",\n  \"price\": 229,\n  \"emoji\": \"🍛\",\n  \"category\": \"Rice\",\n  \"description\": \"Fragrant basmati rice with mixed vegetables\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/menu/items"
+          }
+        },
+        {
+          "name": "List All Menu Items (customer app)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/menu/items"
+          }
+        },
+        {
+          "name": "List Menu Items By Restaurant",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/restaurants/{{restaurantId}}/menu"
+          }
+        },
+        {
+          "name": "Get Currently Displayed Items (customer app)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/menu/displayed"
+          }
+        },
+        {
+          "name": "Get My Restaurant's Displayed Items",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{restaurantToken}}" }],
+            "url": "{{baseUrl}}/api/dashboard/current-item"
+          }
+        },
+        {
+          "name": "Set Item Displayed (POST, dashboard)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{restaurantToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDisplayed\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/dashboard/items/{{menuItemId}}/display"
+          }
+        },
+        {
+          "name": "Set Item Displayed (PATCH, dashboard)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{restaurantToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDisplayed\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/dashboard/items/{{menuItemId}}/display"
+          }
+        },
+        {
+          "name": "Set Item Displayed (legacy, no auth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDisplayed\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/menu/items/{{menuItemId}}/display"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (Customer)",
+      "item": [
+        {
+          "name": "Place Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('orderId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"items\": [\n    { \"menuItem\": \"{{menuItemId}}\", \"quantity\": 2, \"price\": 249 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders"
+          }
+        },
+        {
+          "name": "Get My Order History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/orders/mine"
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/cancel"
+          }
+        },
+        {
+          "name": "Rate Delivered Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/rate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scheduled Orders (Order Ahead)",
+      "item": [
+        {
+          "name": "Schedule An Order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = new Date(Date.now() + 30 * 60 * 1000);",
+                  "pm.variables.set('dynamicScheduledFor', target.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('scheduledOrderId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"items\": [\n    { \"menuItem\": \"{{menuItemId}}\", \"quantity\": 1, \"price\": 249 }\n  ],\n  \"scheduledFor\": \"{{dynamicScheduledFor}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/scheduled-orders"
+          }
+        },
+        {
+          "name": "List My Scheduled Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/scheduled-orders/mine"
+          }
+        },
+        {
+          "name": "Cancel Scheduled Order",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/scheduled-orders/{{scheduledOrderId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (Restaurant & Rider)",
+      "item": [
+        {
+          "name": "Get All Orders (restaurant or rider)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{restaurantToken}}" }],
+            "url": "{{baseUrl}}/api/orders"
+          }
+        },
+        {
+          "name": "Get My Restaurant's Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{restaurantToken}}" }],
+            "url": "{{baseUrl}}/api/orders/restaurant"
+          }
+        },
+        {
+          "name": "Update Order Status (restaurant: preparing/ready)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{restaurantToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"preparing\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/restaurant-status"
+          }
+        },
+        {
+          "name": "Get Available Orders (rider, must be online)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/orders/available"
+          }
+        },
+        {
+          "name": "Accept Order (rider picks up)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/accept"
+          }
+        },
+        {
+          "name": "Update Order Status (rider: on-the-way/delivered/etc.)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/status"
+          }
+        }
+      ]
+    }
+  ]
+}
