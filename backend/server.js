@@ -1570,7 +1570,189 @@ app.get("/api/admin/top-dishes", authenticateAdmin, async (req, res) => {
 
 setInterval(processDueScheduledOrders, SCHEDULED_ORDER_CHECK_INTERVAL_MS);
 
+// ==================== ADMIN ROUTES ====================
+
+// Admin Login
+app.post("/api/admin/login", (req, res) => {
+  const { username, password } = req.body;
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+
+  if (username !== adminUsername || password !== adminPassword) {
+    return res.status(401).json({ error: "Invalid admin credentials" });
+  }
+
+  const token = signAuthToken({ role: "admin", username });
+  res.json({ token, username });
+});
+
+const authenticateAdmin = [authenticateJwt, requireRole("admin")];
+
+// Admin: Overview Stats
+app.get("/api/admin/stats", authenticateAdmin, async (req, res) => {
+  try {
+    const [
+      totalRestaurants,
+      totalOrders,
+      totalCustomers,
+      totalRiders,
+      revenueResult,
+      ordersByStatus,
+      recentOrders,
+      dailyRevenue,
+    ] = await Promise.all([
+      Restaurant.countDocuments(),
+      Order.countDocuments(),
+      Customer.countDocuments(),
+      Rider.countDocuments(),
+      Order.aggregate([
+        { $match: { status: "delivered" } },
+        { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+      ]),
+      Order.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
+      Order.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate("restaurant", "name")
+        .lean(),
+      Order.aggregate([
+        { $match: { status: "delivered", createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            revenue: { $sum: "$totalPrice" },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+    ]);
+
+    res.json({
+      totalRestaurants,
+      totalOrders,
+      totalCustomers,
+      totalRiders,
+      totalRevenue: revenueResult[0]?.total || 0,
+      ordersByStatus,
+      recentOrders,
+      dailyRevenue,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: All Restaurants with stats
+app.get("/api/admin/restaurants", authenticateAdmin, async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find().lean();
+    const restaurantStats = await Order.aggregate([
+      { $group: { _id: "$restaurant", totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$totalPrice" }, avgOrderValue: { $avg: "$totalPrice" } } },
+    ]);
+
+    const statsMap = {};
+    restaurantStats.forEach((s) => { statsMap[s._id.toString()] = s; });
+
+    const result = restaurants.map((r) => ({
+      ...r,
+      totalOrders: statsMap[r._id.toString()]?.totalOrders || 0,
+      totalRevenue: statsMap[r._id.toString()]?.totalRevenue || 0,
+      avgOrderValue: statsMap[r._id.toString()]?.avgOrderValue || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: All Orders
+app.get("/api/admin/orders", authenticateAdmin, async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .populate("restaurant", "name")
+      .populate("rider", "name phone")
+      .lean();
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: All Riders with stats
+app.get("/api/admin/riders", authenticateAdmin, async (req, res) => {
+  try {
+    const riders = await Rider.find().lean();
+    const riderStats = await Order.aggregate([
+      { $match: { rider: { $ne: null } } },
+      { $group: { _id: "$rider", deliveries: { $sum: 1 }, revenue: { $sum: "$totalPrice" } } },
+    ]);
+
+    const statsMap = {};
+    riderStats.forEach((s) => { statsMap[s._id.toString()] = s; });
+
+    const result = riders.map((r) => ({
+      ...r,
+      deliveries: statsMap[r._id.toString()]?.deliveries || 0,
+      revenue: statsMap[r._id.toString()]?.revenue || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: All Customers
+app.get("/api/admin/customers", authenticateAdmin, async (req, res) => {
+  try {
+    const customers = await Customer.find().select("-passwordHash -password").lean();
+    const customerStats = await Order.aggregate([
+      { $match: { customerId: { $ne: null } } },
+      { $group: { _id: "$customerId", totalOrders: { $sum: 1 }, totalSpent: { $sum: "$totalPrice" } } },
+    ]);
+
+    const statsMap = {};
+    customerStats.forEach((s) => { statsMap[s._id.toString()] = s; });
+
+    const result = customers.map((c) => ({
+      ...c,
+      totalOrders: statsMap[c._id.toString()]?.totalOrders || 0,
+      totalSpent: statsMap[c._id.toString()]?.totalSpent || 0,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Top dishes
+app.get("/api/admin/top-dishes", authenticateAdmin, async (req, res) => {
+  try {
+    const topDishes = await Order.aggregate([
+      { $unwind: "$items" },
+      { $group: { _id: "$items.menuItem", totalOrdered: { $sum: "$items.quantity" }, totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } } } },
+      { $sort: { totalOrdered: -1 } },
+      { $limit: 10 },
+      { $lookup: { from: "menuitems", localField: "_id", foreignField: "_id", as: "item" } },
+      { $unwind: { path: "$item", preserveNullAndEmptyArrays: true } },
+      { $project: { name: "$item.name", emoji: "$item.emoji", totalOrdered: 1, totalRevenue: 1 } },
+    ]);
+    res.json(topDishes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== END ADMIN ROUTES ====================
+
 const PORT = process.env.PORT || 4000;
+
 server.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
   console.log(`📍 MongoDB: ${process.env.MONGODB_URI || "mongodb://localhost:27017/food_delivery"}`);
