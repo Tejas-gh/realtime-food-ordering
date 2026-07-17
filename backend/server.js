@@ -13,6 +13,7 @@ const RestaurantUser = require("./models/RestaurantUser");
 const Customer = require("./models/Customer");
 const Rider = require("./models/Rider");
 const ScheduledOrder = require("./models/ScheduledOrder");
+const Admin = require("./models/Admin");
 
 const app = express();
 app.use(cors());
@@ -69,6 +70,8 @@ const authenticateRestaurantUser = [
     next();
   },
 ];
+
+const authenticateAdmin = [authenticateJwt, requireRole("admin")];
 
 // Connect to MongoDB
 connectDB();
@@ -249,6 +252,74 @@ app.post("/api/auth/rider-signup", async (req, res) => {
       token,
       rider: riderPublic(rider),
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST create a new admin account. No UI calls this today (the admin
+// dashboard only has a login screen) - it's here so more than one person
+// can have their own admin login, created via a direct API call.
+app.post("/api/admin/signup", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: "username is required" });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    const existing = await Admin.findOne({ username: normalizedUsername });
+    if (existing) {
+      return res.status(409).json({ error: "An admin account already exists with that username" });
+    }
+
+    const admin = await Admin.create({
+      username: normalizedUsername,
+      passwordHash: await bcrypt.hash(password, 10),
+    });
+
+    const token = signAuthToken({
+      sub: admin._id.toString(),
+      role: "admin",
+      username: admin.username,
+    });
+
+    res.status(201).json({ success: true, token, username: admin.username });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST admin login - used by admin-dashboard-food-delivery's login screen
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password required" });
+    }
+
+    const admin = await Admin.findOne({ username: username.trim().toLowerCase() });
+    if (!admin) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    const validPassword = await bcrypt.compare(password, admin.passwordHash);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    const token = signAuthToken({
+      sub: admin._id.toString(),
+      role: "admin",
+      username: admin.username,
+    });
+
+    res.json({ success: true, token, username: admin.username });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1289,6 +1360,213 @@ async function processDueScheduledOrders() {
     console.error("Error processing scheduled orders:", error.message);
   }
 }
+
+// ---------- Admin Dashboard ----------
+// Backs admin-dashboard-food-delivery (a separate static-HTML repo) -
+// read-only aggregate views over the same data every other app writes to.
+// "Revenue" throughout only counts delivered orders, matching the
+// dashboard's "Revenue (Delivered)" stat card label.
+
+app.get("/api/admin/stats", authenticateAdmin, async (req, res) => {
+  try {
+    const [totalRestaurants, totalOrders, totalCustomers, totalRiders] = await Promise.all([
+      Restaurant.countDocuments(),
+      Order.countDocuments(),
+      Customer.countDocuments(),
+      Rider.countDocuments(),
+    ]);
+
+    const revenueAgg = await Order.aggregate([
+      { $match: { status: "delivered" } },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+    ]);
+    const totalRevenue = revenueAgg[0]?.total || 0;
+
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const dailyRevenue = await Order.aggregate([
+      { $match: { status: "delivered", createdAt: { $gte: fourteenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          revenue: { $sum: "$totalPrice" },
+          orders: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const ordersByStatus = await Order.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    const recentOrders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate("restaurant", "name");
+
+    res.json({
+      totalRestaurants,
+      totalOrders,
+      totalRevenue,
+      totalCustomers,
+      totalRiders,
+      dailyRevenue,
+      ordersByStatus,
+      recentOrders,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/restaurants", authenticateAdmin, async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find().lean();
+    const statsAgg = await Order.aggregate([
+      {
+        $group: {
+          _id: "$restaurant",
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$totalPrice", 0] } },
+          deliveredCount: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } },
+        },
+      },
+    ]);
+    const statsById = new Map(statsAgg.map((s) => [s._id.toString(), s]));
+
+    res.json(
+      restaurants.map((r) => {
+        const s = statsById.get(r._id.toString());
+        const totalOrders = s?.totalOrders || 0;
+        const totalRevenue = s?.totalRevenue || 0;
+        const deliveredCount = s?.deliveredCount || 0;
+        return {
+          _id: r._id,
+          name: r.name,
+          emoji: r.emoji,
+          cuisine: r.cuisine,
+          rating: r.rating,
+          totalOrders,
+          totalRevenue,
+          avgOrderValue: deliveredCount ? totalRevenue / deliveredCount : 0,
+        };
+      })
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/orders", authenticateAdmin, async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .populate("restaurant", "name")
+      .populate("items.menuItem")
+      .populate({ path: "rider", select: "-passwordHash" });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/riders", authenticateAdmin, async (req, res) => {
+  try {
+    const riders = await Rider.find().lean();
+    const statsAgg = await Order.aggregate([
+      { $match: { status: "delivered", rider: { $ne: null } } },
+      { $group: { _id: "$rider", deliveries: { $sum: 1 }, revenue: { $sum: "$totalPrice" } } },
+    ]);
+    const statsById = new Map(statsAgg.map((s) => [s._id.toString(), s]));
+
+    res.json(
+      riders.map((r) => {
+        const s = statsById.get(r._id.toString());
+        return {
+          _id: r._id,
+          name: r.name,
+          phone: r.phone,
+          isActive: r.isActive,
+          deliveries: s?.deliveries || 0,
+          revenue: s?.revenue || 0,
+          createdAt: r.createdAt,
+        };
+      })
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/customers", authenticateAdmin, async (req, res) => {
+  try {
+    const customers = await Customer.find().lean();
+    const statsAgg = await Order.aggregate([
+      { $match: { customerId: { $ne: null } } },
+      {
+        $group: {
+          _id: "$customerId",
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$totalPrice", 0] } },
+        },
+      },
+    ]);
+    const statsById = new Map(statsAgg.map((s) => [s._id.toString(), s]));
+
+    res.json(
+      customers.map((c) => {
+        const s = statsById.get(c._id.toString());
+        return {
+          _id: c._id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          address: c.address,
+          totalOrders: s?.totalOrders || 0,
+          totalSpent: s?.totalSpent || 0,
+          createdAt: c.createdAt,
+        };
+      })
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/top-dishes", authenticateAdmin, async (req, res) => {
+  try {
+    const agg = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.menuItem",
+          totalOrdered: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+        },
+      },
+      { $match: { _id: { $ne: null } } },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 10 },
+    ]);
+
+    const menuItems = await MenuItem.find({ _id: { $in: agg.map((a) => a._id) } }).lean();
+    const menuItemById = new Map(menuItems.map((m) => [m._id.toString(), m]));
+
+    res.json(
+      agg.map((a) => {
+        const item = menuItemById.get(a._id.toString());
+        return {
+          name: item?.name || "Unknown item",
+          emoji: item?.emoji || "🍽️",
+          totalOrdered: a.totalOrdered,
+          totalRevenue: a.totalRevenue,
+        };
+      })
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 setInterval(processDueScheduledOrders, SCHEDULED_ORDER_CHECK_INTERVAL_MS);
 
